@@ -1,7 +1,10 @@
 # Gleam Parallel Perfect Square Finder
 
-## What does this thing do?
+## Problem Statement
 
+An interesting problem in arithmetic with deep implications to **elliptic curve theory** is finding perfect squares that can be expressed as the sum of consecutive squares.
+
+## What does this thing do?
 Ever wondered about sequences of consecutive numbers where their squares add up to another perfect square? Like how 3² + 4² = 25 = 5²? This program finds all such sequences for you, and it does it really fast using multiple cores!
 
 **The Math Problem:**
