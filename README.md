@@ -253,4 +253,4 @@ This problem is related to some fascinating number theory:
 - Somu Geetha Sravya [LinkedIn](https://www.linkedin.com/in/geetha-sravya-somu/)
 - Tharun Kamsala [LinkedIn](https://www.linkedin.com/in/tharun-kamsala-b648571b9/)
 
-Built with ❤️ using Gleam and lots of coffee ☕
+
