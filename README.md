@@ -1,7 +1,5 @@
 # Gleam Parallel Perfect Square Finder
 
-Hey there! 👋 This is a fun project I built to solve a cool mathematical problem using Gleam and some serious parallel processing magic. 
-
 ## What does this thing do?
 
 Ever wondered about sequences of consecutive numbers where their squares add up to another perfect square? Like how 3² + 4² = 25 = 5²? This program finds all such sequences for you, and it does it really fast using multiple cores!
