@@ -239,6 +239,7 @@ All managed through Gleam's package manager automatically!
 **"Takes forever to run":**
 - Start with smaller problems (N < 10000)
 - Check your CPU - this is computationally intensive!
+- The main test case taken is (N=1000000 , K=4)
 
 
 ## The Math Behind It All
