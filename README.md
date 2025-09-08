@@ -239,7 +239,9 @@ All managed through Gleam's package manager automatically!
 **"Takes Longer time to compute":**
 - Start with smaller problems (N < 10000)
 - Check your CPU - this is computationally intensive!
-- The main test case taken is (N=1000000 , K=4)
+- The main test case taken is **(N = 1,000,000 , K = 4)**  
+**CPU Time / Real Time Ratio: 850.0**
+
 
 
 ## The Math Behind It All
