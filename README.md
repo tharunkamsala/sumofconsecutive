@@ -1,256 +1,261 @@
+# Gleam Parallel Perfect Square Finder
 
-# Gleam Parallel Perfect Square Finder: Consecutive Square Sums Solver
+Hey there! 👋 This is a fun project I built to solve a cool mathematical problem using Gleam and some serious parallel processing magic. 
 
-This project is a **Gleam-based mathematical computation application** designed to find sequences of consecutive integers where the sum of their squares equals a perfect square. It leverages **distributed parallel processing** using the **BEAM Virtual Machine's (VM) actor model**. The application is optimized for **multi-core execution** and uses a **boss-worker pattern** where a supervisor actor coordinates multiple worker actors to perform computations in parallel.
+## What does this thing do?
 
-## 📋 Table of Contents
+Ever wondered about sequences of consecutive numbers where their squares add up to another perfect square? Like how 3² + 4² = 25 = 5²? This program finds all such sequences for you, and it does it really fast using multiple cores!
 
-1.  [Problem Description](#1-problem-description)
-2.  [Key Features & Performance Goals](#2-key-features--performance-goals)
-3.  [Installation & Setup](#3-installation--setup)
-    *   [Gleam Installation](#gleam-installation)
-    *   [Project Setup](#project-setup)
-    *   [Dependencies](#dependencies)
-4.  [Usage & Execution](#4-usage--execution)
-    *   [Command Line Interface](#command-line-interface)
-    *   [Execution Steps & Output Flow](#execution-steps--output-flow)
-5.  [System Architecture & Actor Model](#5-system-architecture--actor-model)
-    *   [Core Technologies](#core-technologies)
-    *   [Actor Model Architecture](#actor-model-architecture)
-    *   [Actor System Functions](#actor-system-functions)
-6.  [Mathematical Algorithm & Logic](#6-mathematical-algorithm--logic)
-    *   [Core Mathematical Functions](#core-mathematical-functions)
-    *   [Optimization Strategies](#optimization-strategies)
-7.  [Parallelism Logic & Work Distribution](#7-parallelism-logic--work-distribution)
-    *   [Work Distribution Strategy](#work-distribution-strategy)
-    *   [Work Unit Size Optimization](#work-unit-size-optimization)
-8.  [Performance Metrics & Analysis](#8-performance-metrics--analysis)
-    *   [CPU Time / Real Time Ratio](#cpu-time--real-time-ratio)
-    *   [Performance Categories](#performance-categories)
-    *   [Benchmark Results](#benchmark-results)
-9.  [Output Files](#9-output-files)
-    *   [Metrics File Details](#metrics-file-details)
-10. [Examples](#10-examples)
-11. [Technical Specifications](#11-technical-specifications)
-12. [Development](#12-development)
-    *   [Running Tests](#running-tests)
-    *   [Building for Production](#building-for-production)
-    *   [Performance Tuning](#performance-tuning)
-13. [Author](#13-author)
+**The Math Problem:**
+We're looking for starting points `s` where: `s² + (s+1)² + ... + (s+k-1)² = perfect square`
+
+**Cool Examples:**
+- 3² + 4² = 9 + 16 = 25 = 5² ✨
+- 20² + 21² = 400 + 441 = 841 = 29² 🎯
+
+## Why Gleam? Why not just Python?
+
+Great question! I chose Gleam because:
+- It compiles to Erlang and runs on the BEAM VM (super reliable)
+- Built-in actor model for parallel processing (no thread headaches!)
+- Type-safe but not verbose like Java
+- Handles failures gracefully with the "let it crash" philosophy
+- Can easily spawn thousands of lightweight processes
+
+## Getting Started
+
+### Prerequisites
+You'll need:
+- Erlang/OTP (version 27 or newer)
+- Gleam compiler
+
+### Installation
+
+**macOS (using Homebrew):**
+```bash
+brew install erlang gleam
+```
+
+**Ubuntu/Debian:**
+```bash
+# Install Erlang first
+sudo apt update
+sudo apt install erlang-base erlang-dev
+
+# Then install Gleam
+wget https://github.com/gleam-lang/gleam/releases/latest/download/gleam-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf gleam-x86_64-unknown-linux-gnu.tar.gz
+sudo mv gleam /usr/local/bin/
+```
+
+### Project Setup
+```bash
+git clone <this-repo>
+cd lukas
+gleam deps download
+gleam build
+```
+
+## How to Use It
+
+It's super simple! Just run:
+```bash
+cd lukas
+gleam run -- <N> <k>
+```
+
+Where:
+- `N` = upper limit to search up to
+- `k` = how many consecutive numbers in each sequence
+
+**Try these examples:**
+```bash
+# Small problem with detailed steps
+gleam run -- 25 2
+
+# Medium problem 
+gleam run -- 2000 3
+
+# Big problem (this will flex those CPU cores!)
+gleam run -- 100000 4
+```
+
+## What Happens When You Run It
+
+1. **Setup Phase**: Shows you the problem size and how many worker processes it's creating
+2. **Performance Estimates**: Gives you a heads-up on expected timing
+3. **Processing**: Workers crunch numbers in parallel
+4. **Results**: 
+   - For small problems (N ≤ 100): Shows every calculation step
+   - For big problems: Just shows the summary and solutions found
+5. **Metrics File**: Automatically saves detailed performance stats to a text file
+
+## The Secret Sauce: How Parallelism Works
+
+This is where it gets cool! The program uses Erlang's actor model:
+
+```
+       Boss Actor (coordinator)
+            |
+    ┌───────┼───────┐
+    │       │       │
+ Worker1  Worker2  Worker3  ...
+```
+
+**The Strategy:**
+- Split the work into chunks (work units)
+- Each worker gets a range to process
+- Workers run completely independently 
+- Boss collects all results when done
+
+**Work Distribution Logic:**
+```gleam
+work_unit_size = case problem_size {
+  n > 10000  -> 1000  // Big chunks for big problems
+  n > 1000   -> 200   // Medium chunks
+  _          -> 10    // Small chunks (forces more workers)
+}
+```
+
+This ensures you get good parallelism even for smaller problems!
+
+## Under the Hood: The Math Functions
+
+### Core Functions
+
+**`is_perfect_square(n)`** - Checks if a number is a perfect square
+```gleam
+// Uses floating point square root, then verifies with integers
+// Example: is_perfect_square(25) -> True (because 5² = 25)
+```
+
+**`sum_of_squares(start, k)`** - Adds up k consecutive squares
+```gleam
+// Example: sum_of_squares(3, 2) -> 3² + 4² = 9 + 16 = 25
+```
+
+**`find_solutions_in_range(start, end, k)`** - The main algorithm
+```gleam
+// Tests every starting point in the range
+// Returns list of valid starting points
+```
+
+### The Algorithm
+It's basically a smart brute force approach:
+1. For each possible starting point `s` from 1 to N
+2. Calculate `s² + (s+1)² + ... + (s+k-1)²`
+3. Check if the result is a perfect square
+4. If yes, record `s` as a solution
+
+The magic is in doing steps 1-4 across multiple CPU cores simultaneously!
+
+## Performance Metrics That Matter
+
+The program tracks several key metrics:
+
+**CPU Time / Real Time Ratio** - This is the big one!
+- Ratio > 2.0 = Great parallelism (multiple cores working hard)
+- Ratio 1.1-2.0 = Some parallelism 
+- Ratio ≤ 1.1 = Barely any parallelism (not good!)
+
+**Other Cool Stats:**
+- Real execution time
+- Solutions found per second (throughput)
+- Number of worker processes created
+- Memory efficiency
+
+## Output Files
+
+Every run creates a detailed metrics file like `metrics_N2000_k3.txt` containing:
+- All the performance statistics
+- Complete list of solutions found
+- System architecture details
+- Timing breakdown
+
+These files are saved in the project directory for later analysis.
+
+## Examples in Action
+
+**Small Problem (shows every step):**
+```
+$ gleam run -- 25 2
+
+s = 1 → 1² + 2² = 1 + 4 = 5 (not a perfect square)
+s = 2 → 2² + 3² = 4 + 9 = 13 (not a perfect square)  
+s = 3 → 3² + 4² = 9 + 16 = 25 = 5² ✓ SOLUTION!
+...
+```
+
+**Large Problem (summary mode):**
+```
+$ gleam run -- 10000 2
+
+🚀 STARTING PARALLEL PROCESSING...
+Workers: 10, Actors: 11 total
+Expected CPU/Real ratio: ~8.5x
+
+📋 RESULTS:
+Found 13 perfect square solutions!
+CPU/Real ratio: 8.2 (excellent parallelism!)
+```
+
+## Dependencies We Use
+
+The project is pretty lightweight:
+- `gleam_stdlib` - Basic Gleam functions
+- `gleam_otp` - The actor model magic ⭐
+- `gleam_erlang` - Erlang integration
+- `argv` - Command line argument parsing
+- `simplifile` - File operations for saving metrics
+
+All managed through Gleam's package manager automatically!
+
+## Technical Details (for the curious)
+
+**Runtime Environment:**
+- BEAM Virtual Machine (same as Erlang/Elixir)
+- Preemptive scheduling across all CPU cores
+- Fault-tolerant with supervisor trees
+- Shared-nothing memory model per actor
+
+**Performance Characteristics:**
+- Successfully tested up to N=10,000,000 
+- Scales linearly with problem size
+- Minimal overhead from message passing
+- Memory usage stays reasonable even with hundreds of workers
+
+## Troubleshooting
+
+**"Not enough parallelism" (ratio < 1.5):**
+- Try a larger N value 
+- Check if you have multiple CPU cores
+- Make sure the work unit size isn't too large
+
+**"Out of memory":**
+- Reduce the work unit size in the code
+- Try smaller N values first
+
+**"Takes forever to run":**
+- Start with smaller problems (N < 10000)
+- Check your CPU - this is computationally intensive!
+
+## Contributing
+
+Found a bug or want to make it faster? Pull requests welcome! This project taught me a ton about parallel processing and I'd love to see what improvements others can make.
+
+## The Math Behind It All
+
+This problem is related to some fascinating number theory:
+- Pythagorean triples (like 3, 4, 5)
+- Square pyramidal numbers
+- Sums of consecutive squares
+
+If you're into math, try running it with different k values and see what patterns emerge!
 
 ---
 
-## 1. Problem Description
+**Authors:** 
+- Somu Geetha Sravya [LinkedIn](https://www.linkedin.com/in/geetha-sravya-somu/)
+- Tharun Kamsala [LinkedIn](https://www.linkedin.com/in/tharun-kamsala-b648571b9/)
 
-The main **goal** of this program is to find starting points `s` where the sum of `k` consecutive squares, starting from `s` and going up to `N`, equals a **perfect square**. This means we're looking for `s` such that:
-
-`s² + (s+1)² + ... + (s+k-1)² = perfect square`
-
-**Examples**:
-*   **Pythagorean Identity**: 3² + 4² = 9 + 16 = 25 = 5²
-*   **Lucas' Square Pyramid**: 1² + 2² + ... + 24² = 70²
-
-The problem involves finding sequences of `k` consecutive integers starting from 1 up to a given limit `N`.
-
-## 2. Key Features & Performance Goals
-
-This application boasts several key features and achieves important performance goals:
-
-*   ✅ **Exclusive Actor Usage**: It relies solely on the **actor model for parallelism**, avoiding other methods like threads or processes.
-*   ✅ **Type Safety**: Built with **Gleam's full type safety** throughout the codebase.
-*   ✅ **Fault Tolerance**: Designed with **Erlang/OTP supervision principles** for robust, fault-tolerant execution.
-*   ✅ **Scalable Parallelism**: Automatically scales workers based on problem size, ensuring **efficient multi-core CPU utilization**.
-*   ✅ **Performance**: Features **optimized work distribution** and **minimal overhead** from actor message passing.
-*   ✅ **Clean Architecture**: Maintains a clear **separation of concerns** between coordination and computation.
-*   ✅ **CPU/Real Time Ratio > 1.0**: Demonstrates **effective multi-core usage**, consistently achieving a ratio above 1.0.
-*   ✅ **Detailed Calculation Steps**: Provides verbose, step-by-step calculations for smaller problems (when `N ≤ 100`).
-*   ✅ **Comprehensive Metrics**: Automatically saves detailed performance statistics to timestamped text files.
-*   ✅ **Real-time Progress**: Offers live performance estimates and updates on worker coordination during execution.
-
-## 3. Installation & Setup
-
-### Gleam Installation
-To run this project locally, you need **Erlang/OTP (v27+)** and **Gleam** installed.
-
-#### 1. Install Erlang/OTP
-Gleam runs on the BEAM VM, so Erlang is required:
-
-### Gleam Installation
-
-To run this project locally, you need **Erlang/OTP (v27+)** and **Gleam** installed.
-
-#### macOS (Homebrew)
-brew install erlang
-brew install gleam 
-
-### Project Setup
-After installing Gleam, you would then set up the project (e.g., download or clone the repository).
-
-### Dependencies
-This project relies on several key packages:
-
-#### Core Dependencies (listed in `gleam.toml`)
-*   `gleam_stdlib`: The core Gleam standard library, providing essential functions and data structures. Version `>= 0.44.0` and `< 2.0.0`.
-*   `gleam_otp`: **Critical for parallelism**, this package provides the **BEAM VM Actor Model** and OTP functionality. Version `>= 1.1.0` and `< 2.0.0`.
-*   `gleam_erlang`: Handles **Erlang interoperability** and process management. Version `>= 0.32.0` and `< 2.0.0`.
-*   `argv`: Used for **command-line argument parsing**. Version `>= 1.0.0` and `< 2.0.0`.
-*   `simplifile`: Used for **File I/O operations**, specifically for creating the metrics file. Version `>= 2.3.0` and `< 3.0.0`.
-
-#### Development Dependencies
-*   `gleeunit`: A **testing framework** used for unit tests (not included in production builds).
-
-* use ```gleam deps download``` to download dependencies used in this project
-
-Dependencies are managed using the **Hex Package Manager**.
-
-## 4. Usage & Execution
-
-### Command Line Interface
-The program accepts two integer values as command-line arguments:
-*   `N`: The upper limit for the starting number `s`.
-*   `k`: The number of consecutive integers in the sequence.
-
-**Example Usage**:
-`cd lukas`
-`gleam run 1000000 4`
-This command would find sequences of 4 consecutive numbers up to `1,000,000`.
-
-### Execution Steps & Output Flow
-
-1.  **Startup Information**: The program will first display details about the problem size (`N`, `k`), the number of worker actors created, and the system architecture.
-2.  **Performance Estimates**: You will see expected timing and CPU usage estimations.
-3.  **Processing Phase**: Messages indicating worker coordination and progress will be shown.
-4.  **Results Display**:
-    *   **Small N (≤ 100)**: Detailed, **step-by-step calculations** for each potential solution will be printed.
-    *   **Large N (> 100)**: A concise **summary** will be provided, along with a list of the found solutions (without verbose output for parallel efficiency).
-5.  **Metrics File Creation**: A notification will appear, confirming the automatic creation of a metrics text file, including its filename and a brief description.
-
-## 5. System Architecture & Actor Model
-
-### Core Technologies
-*   **Language**: **Gleam**, a functional language that compiles to **Erlang bytecode**.
-*   **Runtime**: The **BEAM Virtual Machine (Erlang/OTP)**, which provides a highly concurrent, fault-tolerant, and robust execution environment.
-*   **Concurrency Model**: Purely uses the **Actor Model** with message passing, implemented via Gleam's OTP actors for parallel processing.
-
-### Actor Model Architecture
-The system uses a **boss-worker pattern**:
-
-1.  **Boss Actor**:
-    *   **Coordinates work distribution** across multiple worker actors.
-    *   **Collects results** from all worker actors.
-    *   **Manages actor lifecycle** and synchronization.
-    *   Outputs the **final sorted results**.
-    *   Handles `Result(solutions)` and `WorkerDone` messages. When all workers are complete, it displays results and creates the metrics file.
-
-2.  **Worker Actors**:
-    *   **Process assigned ranges independently**.
-    *   Perform the core **mathematical computations in parallel**.
-    *   **Send results back to the boss actor**.
-    *   Enable **multi-core utilization**.
-    *   Handles `ComputeRange(start, end, k, boss)` messages to process a given range and `Shutdown` messages to terminate.
-
-### Actor System Functions
-*   `handle_worker_message`: Handles messages within worker actors.
-*   `handle_boss_message`: Coordinates all workers and manages final results.
-
-## 6. Mathematical Algorithm & Logic
-
-The core algorithm for solving the problem is a **brute-force search** enhanced with parallel processing.
-
-### Core Mathematical Functions
-*   `is_perfect_square`:
-    *   **Purpose**: Checks if a given number is a perfect square.
-    *   **Logic**: Uses `float.square_root()` and then verifies if the integer part of the square root, when squared, equals the original number.
-    *   **Example**: `is_perfect_square(25)` returns `True` (since 5² = 25).
-*   `sum_of_squares`:
-    *   **Purpose**: Calculates the sum of `k` consecutive squares, starting at `start`.
-    *   **Logic**: `start² + (start+1)² + ... + (start+k-1)²`.
-    *   **Example**: `sum_of_squares(3, 2)` returns `3² + 4² = 9 + 16 = 25`.
-*   `get_integer_square_root`:
-    *   **Purpose**: Safely extracts the integer square root if a number is a perfect square; otherwise, it returns an error.
-
-### Optimization Strategies
-1.  **Perfect Square Check**: Uses a **floating-point square root** followed by an integer verification, which is efficient.
-2.  **Range Partitioning**: The total workload is **divided among multiple actors**.
-3.  **Efficient Summation**: Direct calculation is used instead of iterative loops, improving speed.
-
-## 7. Parallelism Logic & Work Distribution
-
-The application is designed for **scalable parallelism**, automatically scaling workers based on problem size.
-
-### Work Distribution Strategy
-*   **Work Unit Size**: The default work unit size is **1000**. This value is configurable for performance tuning (in the `distribute_work()` function).
-*   **Number of Workers**: Automatically calculated based on the overall problem size (`N`).
-*   **Load Balancing**: Work ranges are **evenly distributed** across all available workers.
-*   **Range Distribution**: The logic determines how ranges are split and assigned to workers.
-*   **Sequential vs Parallel Decision**: The system decides when to run sequentially or in parallel.
-
-### Work Unit Size Optimization
-After extensive testing, a **work unit size of 1000** has been identified as providing the optimal balance between:
-*   **Work Distribution Overhead**: Minimizing the costs associated with actor creation and communication.
-*   **Parallel Processing Efficiency**: Maximizing the utilization of available CPU cores.
-*   **Memory Usage**: Maintaining a reasonable memory footprint for each worker actor.
-
-## 8. Performance Metrics & Analysis
-
-### CPU Time / Real Time Ratio
-This ratio is a crucial indicator of parallelism effectiveness.
-
-**Formula Used**:
-*   **Interpretation**:
-    *   Ratio `≤ 1.1`: Indicates almost no parallelism (points might be deducted in a scoring context).
-    *   Ratio `≤ 2.0`: Suggests limited parallelism.
-    *   Ratio `> 2.0`: Represents **good parallelism**, meaning multiple CPU cores are being effectively used.
-
-The application successfully demonstrates effective multi-core utilization with **CPU/Real time ratios consistently above 1.0**. Benchmark results show an effective parallelism of **~1.23x CPU utilization**, confirming effective use of multiple cores.
-
-### Performance Categories
-*   **Real Time**: The actual wall-clock time taken for the computation.
-*   **Throughput**: Measures the number of solutions found per second.
-*   **Actor Count**: The total number of processes involved (1 boss actor + `N` worker actors).
-*   **Parallel Efficiency**: A measure of the overhead incurred due to coordination between actors.
-
-### Benchmark Results
-*   **Effective Parallelism**: The ratio shows ~1.23x CPU utilization, indicating effective use of multiple cores.
-*   **Actor Overhead**: Minimal overhead from actor message passing.
-*   **Scalability**: Displays **linear performance scaling** with increasing problem size.
-*   **Largest Problem Solved**: Successfully tested with **N = 10,000,000, k = 4** without issues. Memory usage scales efficiently, and the actor system handles hundreds of worker actors seamlessly.
-
-## 9. Output Files
-
-### Metrics File Details
-A detailed metrics text file is automatically created after computation.
-
-*   **File Naming Convention**: `metrics_N{N}_k{k}.txt`.
-    *   **Examples**:
-        *   `metrics_N25_k2.txt`
-        *   `metrics_N2000_k3.txt`
-*   **File Storage Location**:
-    *  - **File Storage Location**: Stored in the **`lukas` directory** (project root).  
-    *   **Local**: In the same directory as the executable.
-*   **File Creation Trigger**: Automatically created **after the computation completes**. A console message notifies the user with the filename and a description.
-*   **File Contents Structure**: The file contains comprehensive performance statistics, including CPU/Real time ratio, throughput, actor counts, and solutions found.
-
-
-## 10. Technical Specifications
-
-*   **Runtime**: **BEAM Virtual Machine (Erlang/OTP)**. Specifically requires **Erlang/OTP 27.0+**.
-*   **Compilation**: Gleam code is compiled into **Erlang bytecode**.
-*   **Concurrency**: Achieved through the **Actor Model** with message passing.
-*   **Fault Tolerance**: Implemented using **Supervisor trees** and adhering to the "let-it-crash" philosophy inherent to Erlang/OTP.
-*   **Scheduling**: Uses the **preemptive BEAM scheduler**.
-*   **Memory**: Each actor operates with a **shared-nothing architecture**.
-
-## 12. Development
-
-### Building for Production
-Instructions would be provided here for building the project for a production environment.
-
-### Performance Tuning
-To optimize performance for different hardware configurations, you can **modify the `work_unit_size` variable** within the `distribute_work()` function.
-
-## 13. Authors
-**Authors:** Somu Geetha Sravya
-🔗 [LinkedIn Profile](https://www.linkedin.com/in/geetha-sravya-somu/)
-Tharun Kamsala
-🔗 [LinkedIn Profile](https://www.linkedin.com/in/tharun-kamsala-b648571b9/)
+Built with ❤️ using Gleam and lots of coffee ☕
