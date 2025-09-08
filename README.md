@@ -237,9 +237,6 @@ All managed through Gleam's package manager automatically!
 - Start with smaller problems (N < 10000)
 - Check your CPU - this is computationally intensive!
 
-## Contributing
-
-Found a bug or want to make it faster? Pull requests welcome! This project taught me a ton about parallel processing and I'd love to see what improvements others can make.
 
 ## The Math Behind It All
 
@@ -248,9 +245,6 @@ This problem is related to some fascinating number theory:
 - Square pyramidal numbers
 - Sums of consecutive squares
 
-If you're into math, try running it with different k values and see what patterns emerge!
-
----
 
 **Authors:** 
 - Somu Geetha Sravya [LinkedIn](https://www.linkedin.com/in/geetha-sravya-somu/)
