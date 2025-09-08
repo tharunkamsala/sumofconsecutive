@@ -70,8 +70,18 @@ This application boasts several key features and achieves important performance 
 ## 3. Installation & Setup
 
 ### Gleam Installation
-*   **In Replit Environment**: Gleam is **automatically available**; no manual installation is needed.
-*   **For Local Development**: Instructions would typically be provided here for local setup.
+To run this project locally, you need **Erlang/OTP (v27+)** and **Gleam** installed.
+
+#### 1. Install Erlang/OTP
+Gleam runs on the BEAM VM, so Erlang is required:
+
+### Gleam Installation
+
+To run this project locally, you need **Erlang/OTP (v27+)** and **Gleam** installed.
+
+#### macOS (Homebrew)
+brew install erlang
+brew install gleam 
 
 ### Project Setup
 After installing Gleam, you would then set up the project (e.g., download or clone the repository).
@@ -89,6 +99,8 @@ This project relies on several key packages:
 #### Development Dependencies
 *   `gleeunit`: A **testing framework** used for unit tests (not included in production builds).
 
+* use ```gleam deps download``` to download dependencies used in this project
+
 Dependencies are managed using the **Hex Package Manager**.
 
 ## 4. Usage & Execution
@@ -99,7 +111,8 @@ The program accepts two integer values as command-line arguments:
 *   `k`: The number of consecutive integers in the sequence.
 
 **Example Usage**:
-`lukas 1000000 4`
+`cd lukas`
+`gleam run 1000000 4`
 This command would find sequences of 4 consecutive numbers up to `1,000,000`.
 
 ### Execution Steps & Output Flow
@@ -213,16 +226,13 @@ A detailed metrics text file is automatically created after computation.
         *   `metrics_N25_k2.txt`
         *   `metrics_N2000_k3.txt`
 *   **File Storage Location**:
-    *   **Replit**: In the project root directory (`/home/runner/workspace/`).
+    *  - **File Storage Location**: Stored in the **`lukas` directory** (project root).  
     *   **Local**: In the same directory as the executable.
 *   **File Creation Trigger**: Automatically created **after the computation completes**. A console message notifies the user with the filename and a description.
 *   **File Contents Structure**: The file contains comprehensive performance statistics, including CPU/Real time ratio, throughput, actor counts, and solutions found.
 
-## 10. Examples
 
-The `README (2).md` includes sections for **Small Problems (Detailed Steps)** and **Large Problems (Summary Mode)** as examples. The `README.md` also includes **Small Test Cases** and **Performance Verification** examples.
-
-## 11. Technical Specifications
+## 10. Technical Specifications
 
 *   **Runtime**: **BEAM Virtual Machine (Erlang/OTP)**. Specifically requires **Erlang/OTP 27.0+**.
 *   **Compilation**: Gleam code is compiled into **Erlang bytecode**.
@@ -233,9 +243,6 @@ The `README (2).md` includes sections for **Small Problems (Detailed Steps)** an
 
 ## 12. Development
 
-### Running Tests
-The project uses `gleeunit` for its testing framework. You would typically run tests using a command provided by the `gleeunit` setup.
-
 ### Building for Production
 Instructions would be provided here for building the project for a production environment.
 
@@ -243,5 +250,6 @@ Instructions would be provided here for building the project for a production en
 To optimize performance for different hardware configurations, you can **modify the `work_unit_size` variable** within the `distribute_work()` function.
 
 ## 13. Author
-
-This project was built with Gleam's actor model for efficient parallel computation on the BEAM virtual machine.
+**Author:** Somu Geetha Sravya , Tharun Kamsala
+🔗 [LinkedIn Profile](https://www.linkedin.com/in/geetha-sravya-somu/)
+🔗 [LinkedIn Profile](https://www.linkedin.com/in/tharun-kamsala-b648571b9/)
