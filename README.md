@@ -249,8 +249,8 @@ Instructions would be provided here for building the project for a production en
 ### Performance Tuning
 To optimize performance for different hardware configurations, you can **modify the `work_unit_size` variable** within the `distribute_work()` function.
 
-## 13. Author
-**Author:** Somu Geetha Sravya
+## 13. Authors
+**Authors:** Somu Geetha Sravya
 🔗 [LinkedIn Profile](https://www.linkedin.com/in/geetha-sravya-somu/)
 Tharun Kamsala
 🔗 [LinkedIn Profile](https://www.linkedin.com/in/tharun-kamsala-b648571b9/)
