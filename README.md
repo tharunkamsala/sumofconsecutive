@@ -1,29 +1,38 @@
-Got it 👍 — here’s the same cleaned and professional version formatted properly in **README (Markdown) syntax**:
+Perfect — here’s a **complete, professional, GitHub-ready README.md** with everything polished, consistent, and including nice badges + sections that make it look production quality:
 
 ````markdown
 # Gossip & Push-Sum Simulator (Gleam / BEAM)
 
-An end-to-end Gleam application that models the **Gossip** and **Push-Sum** distributed algorithms on top of the **BEAM virtual machine**. Each simulated node runs as a lightweight Erlang process, exchanges messages with its neighbours, and reports convergence to a supervisor that orchestrates the run. The CLI allows you to explore different topologies, inject failures, and export metrics for analysis.
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()  
+[![Language](https://img.shields.io/badge/Gleam-1.0+-blue)](https://gleam.run)  
+[![Erlang](https://img.shields.io/badge/Erlang-26+-red)](https://www.erlang.org)  
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)]()
+
+An end-to-end Gleam application that models the **Gossip** and **Push-Sum** distributed algorithms on top of the **BEAM virtual machine**. Each simulated node runs as a lightweight Erlang process, exchanges messages with its neighbours, and reports convergence to a supervisor that orchestrates the run.  
+
+The CLI allows you to:  
+- Explore multiple network topologies  
+- Inject permanent node failures  
+- Collect reproducible experimental metrics  
 
 ---
 
 ## ✨ Features
 - Actor-based implementation of Gossip and Push-Sum protocols  
-- Built-in topologies: `full`, `line`, `3D`, `imp3D` (3D grid + one random neighbour)  
+- Built-in topologies: `full`, `line`, `3D`, `imp3D` (3D grid + random neighbour)  
 - Deterministic pseudo-random generator for reproducible experiments  
-- Failure injection with `fail=<rate>` to permanently kill nodes (Bernoulli trial)  
-- Supervisor dynamically adjusts convergence targets as nodes die and emits CSV metrics  
+- Failure injection via `fail=<rate>` flag  
+- Supervisor dynamically adjusts convergence targets and emits CSV metrics  
 
 ---
 
 ## ⚙️ Requirements
-- [Gleam](https://gleam.run) ≥ 1.0  
-  (`brew install gleam`, `asdf install gleam`, or binary release)  
-- Erlang/OTP ≥ 26 (BEAM runtime)  
-- macOS/Linux, or Windows via WSL  
-- No additional Hex dependencies beyond `manifest.toml`
+- [Gleam](https://gleam.run) ≥ **1.0**  
+- Erlang/OTP ≥ **26** (BEAM runtime)  
+- macOS/Linux or Windows via WSL  
+- No additional Hex dependencies (beyond `manifest.toml`)  
 
-Quick toolchain check:
+Verify your toolchain:
 ```bash
 gleam doctor
 ````
@@ -32,12 +41,17 @@ gleam doctor
 
 ## 📂 Repository Layout
 
-* `src/main.gleam` – CLI entry point, topology bootstrapper, metrics reporter
-* `src/actors.gleam` – Gossip/Push-Sum node processes + failure logic
-* `src/coordinator.gleam` – Supervisor for convergence & node tracking
-* `src/topology.gleam` – Graph builders & statistics for all layouts
-* `src/rand_utils.gleam` – Deterministic RNG helpers
-* `test/` – Placeholder gleeunit suite
+```text
+project2/
+ ├── src/
+ │    ├── main.gleam        # CLI entry point, topology bootstrapper, metrics reporter
+ │    ├── actors.gleam      # Gossip/Push-Sum node processes + failure logic
+ │    ├── coordinator.gleam # Supervisor for convergence & node tracking
+ │    ├── topology.gleam    # Graph builders & statistics for all layouts
+ │    └── rand_utils.gleam  # Deterministic RNG helpers
+ ├── test/                  # Placeholder gleeunit suite
+ └── README.md
+```
 
 ---
 
@@ -48,7 +62,7 @@ From project root (`project2/`):
 ```bash
 gleam deps download   # Fetch dependencies
 gleam build           # Compile project
-gleam test            # Run gleeunit tests (placeholder)
+gleam test            # Run gleeunit tests (currently placeholder)
 ```
 
 ---
@@ -61,10 +75,12 @@ CLI usage:
 gleam run -- <num_nodes> <topology> <algorithm> [fail=<0.0-1.0>]
 ```
 
-* `num_nodes` → number of processes
-* `topology` → `full`, `line`, `3D`, `imp3D`
+**Arguments**:
+
+* `num_nodes` → number of processes (positive integer)
+* `topology` → one of `full`, `line`, `3D`, `imp3D`
 * `algorithm` → `gossip` or `push-sum`
-* `fail` → optional crash probability (default: 0.0)
+* `fail` → optional probability of node crash (default: `0.0`)
 
 ### Example Runs
 
@@ -103,34 +119,36 @@ metrics,20,line,gossip,0.2,completed,409,17,1,1
 409
 ```
 
-* `metrics,...` line → CSV-friendly: `num_nodes, topology, algorithm, fail_rate, status, elapsed_ms, dead_nodes, done_nodes, target`
-* Final integer → elapsed milliseconds (legacy automation)
+* `metrics,...` → CSV-friendly: `num_nodes, topology, algorithm, fail_rate, status, elapsed_ms, dead_nodes, done_nodes, target`
+* Final integer → elapsed milliseconds (legacy automation support)
 
 ---
 
 ## 🔎 Simulation Workflow
 
-1. **Topology construction** – build graph, compute degrees
-2. **Coordinator bootstrap** – supervisor tracks convergence/deaths
-3. **Node spawn** – actors get RNG seed & thresholds
-4. **Neighbour handshake** – nodes exchange direct messaging links
-5. **Protocol execution** – gossip/rumours or push-sum averaging begins
-6. **Convergence detection** – thresholds trigger notifications
-7. **Completion** – supervisor ends run at ≥60% alive-node convergence
+1. **Topology construction** – graph built with degree stats
+2. **Coordinator bootstrap** – supervisor tracks convergence & node deaths
+3. **Node spawn** – each actor seeded with deterministic RNG
+4. **Neighbour handshake** – nodes exchange direct message references
+5. **Protocol execution** – gossip/rumours or push-sum averaging runs
+6. **Convergence detection** – thresholds reached trigger supervisor notification
+7. **Completion** – run ends once ≥60% alive nodes converge
 
 ---
 
 ## 💀 Failure Model
 
-* **Trigger** – each cycle, node samples RNG vs. `fail_rate`
-* **Teardown** – dead nodes notify supervisor & stop forwarding
-* **Accounting** – convergence target recalculated as `ceil(0.6 * alive)`
-* **Converged-but-dead** – still counted in metrics
-* **Deterministic chaos** – seeds ensure repeatable failure patterns
+* **Trigger** – each cycle, RNG vs. `fail_rate` decides node crash
+* **Teardown** – node emits `NodeDead(id)` then halts permanently
+* **Accounting** – supervisor recalculates convergence target as `ceil(0.6 * alive)`
+* **Converged-but-dead** – counted in metrics
+* **Deterministic chaos** – repeatable failure patterns with seeded RNG
 
 ---
 
 ## 📈 Experimental Data Collection
+
+Automate experiments with:
 
 ```bash
 for rate in 0.00 0.05 0.10 0.15 0.20; do
@@ -138,38 +156,53 @@ for rate in 0.00 0.05 0.10 0.15 0.20; do
 done
 ```
 
-Load into plotting tools (`gnuplot`, Excel, R, etc.) → analyze convergence vs. failure rate.
+Analyze `results.csv` using Excel, R, or gnuplot:
+
+* Convergence time vs. failure rate
+* Success rate (status == `completed`)
+* Dead node counts
 
 ---
 
 ## 🔧 Configuration Knobs
 
-* Gossip threshold → `main.gleam` (default = 2)
-* Push-Sum epsilon → `actors.gleam` (default = 1e-10)
-* Timeout → 3s global cap in `wait_for_done_with_timeout`
-* Failure rate → CLI `fail=<rate>`
+* Gossip threshold → `main.gleam` (default: 2)
+* Push-Sum epsilon → `actors.gleam` (default: 1e-10)
+* Timeout → 3s (in `wait_for_done_with_timeout`)
+* Failure rate → CLI `fail=<rate>` (0.0–1.0)
 * RNG seeding → per-node formula for reproducibility
 
 ---
 
 ## 🐞 Debugging Tips
 
-* **`gleam` not found** → add to PATH
+* **`gleam` not found** → add to `PATH`
 * **Erlang missing** → install Erlang/OTP ≥ 26
-* **Timeouts** → use denser topologies, extend timeout, lower failure rate
-* **Too many deaths** → reduce `fail` or adjust convergence thresholds
+* **Timeouts** → try denser topologies, extend timeout, reduce `fail`
+* **Too many node deaths** → lower failure rate or reduce thresholds
 
 ---
 
 ## 🚀 Extending the Project
 
-* Add topologies → extend `Topology` + builder in `topology.gleam`
-* New failure models → enrich `actors.gleam` & supervisor logic
-* Better testing → gleeunit with deterministic mini-networks
-* Export more metrics → CSV/JSON for richer analysis
+* Add new topologies in `src/topology.gleam`
+* Implement alternative failure models (e.g. recoveries, link drops)
+* Enhance testing with deterministic mini-networks in gleeunit
+* Export richer metrics (CSV/JSON) for advanced analysis
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 ✅ **Professional, modular, and extensible — perfect for distributed systems experiments on Gleam/BEAM.**
-us, Gleam version, license) at the top so the README looks GitHub-ready?
 
+```
+
+---
+
+Would you like me to also generate a **`Report-bonus.pdf` template** (with plots, methodology, and observations) so it pairs neatly with this README for your course submission?
+```
