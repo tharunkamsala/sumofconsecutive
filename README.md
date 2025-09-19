@@ -1,259 +1,142 @@
-# Gleam Parallel Perfect Square Finder
+# Gossip & Push-Sum Simulator (Gleam / BEAM)
 
-## Problem Statement
+An end-to-end Gleam application that models the classic Gossip and Push-Sum distributed algorithms on top of the BEAM virtual machine. Each simulated node runs as a lightweight Erlang process, exchanges messages with its neighbours, and reports convergence back to a supervisor that orchestrates the entire run. The CLI lets you explore different topologies, inject failures, and export metrics for analysis.
 
-An interesting problem in arithmetic with deep implications to **elliptic curve theory** is finding perfect squares that can be expressed as the sum of consecutive squares.
+## Features at a Glance
+- Actor-based implementation of Gossip and Push-Sum protocols.
+- Built-in topologies: `full`, `line`, `3D`, and `imp3D` (3D grid plus one random neighbour per node).
+- Deterministic pseudo-random generator for reproducible experiments.
+- Failure injection via a `fail=<rate>` flag that permanently kills nodes according to a Bernoulli trial.
+- Supervisor adjusts convergence targets as nodes die and emits metrics for downstream plotting.
 
-## What does this thing do?
-Ever wondered about sequences of consecutive numbers where their squares add up to another perfect square? Like how 3² + 4² = 25 = 5²? This program finds all such sequences for you, and it does it really fast using multiple cores!
+## Requirements
+- [Gleam](https://gleam.run) ≥ 1.0 (`brew install gleam`, `asdf install gleam`, or download a binary release).
+- Erlang/OTP ≥ 26 (BEAM runtime required by Gleam projects).
+- macOS/Linux or Windows via WSL. No additional Hex dependencies beyond the ones vendored in `manifest.toml`.
 
-**The Math Problem:**
-We're looking for starting points `s` where: `s² + (s+1)² + ... + (s+k-1)² = perfect square`
-
-**Cool Examples:**
-- 3² + 4² = 9 + 16 = 25 = 5² ✨
-- 20² + 21² = 400 + 441 = 841 = 29² 🎯
-
-## Why Gleam? Why not just Python?
-
-Great question! I chose Gleam because:
-- It compiles to Erlang and runs on the BEAM VM (super reliable)
-- Built-in actor model for parallel processing (no thread headaches!)
-- Type-safe but not verbose like Java
-- Handles failures gracefully with the "let it crash" philosophy
-- Can easily spawn thousands of lightweight processes
-
-## Getting Started
-
-### Prerequisites
-You'll need:
-- Erlang/OTP (version 27 or newer)
-- Gleam compiler
-
-### Installation
-
-**macOS (using Homebrew):**
+Run a quick health check once the toolchain is installed:
 ```bash
-brew install erlang gleam
+gleam doctor
 ```
 
-**Ubuntu/Debian:**
+## Repository Layout
+- `src/main.gleam` – CLI entry point, topology bootstrapper, and metrics reporter.
+- `src/actors.gleam` – Gossip/Push-Sum node processes plus failure logic.
+- `src/coordinator.gleam` – Supervisor process that tracks convergence and dead nodes.
+- `src/topology.gleam` – Graph builders and degree statistics for all supported layouts.
+- `src/rand_utils.gleam` – Deterministic RNG helpers used by nodes and topology builders.
+- `test/` – Placeholder gleeunit suite (extend as needed).
+
+## Building and Testing
+From the project root (`project2/`):
 ```bash
-# Install Erlang first
-sudo apt update
-sudo apt install erlang-base erlang-dev
-
-# Then install Gleam
-wget https://github.com/gleam-lang/gleam/releases/latest/download/gleam-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf gleam-x86_64-unknown-linux-gnu.tar.gz
-sudo mv gleam /usr/local/bin/
+gleam deps download   # Fetch Hex dependencies
+gleam build           # Type-check and compile the project
+gleam test            # Run gleeunit tests (currently placeholder)
 ```
 
-### Project Setup
+## Running Simulations
+The CLI accepts three required positional arguments and an optional failure flag:
 ```bash
-git clone <this-repo>
-cd lukas
-gleam deps download
-gleam build
+gleam run -- <num_nodes> <topology> <algorithm> [fail=<0.0-1.0>]
 ```
+- `num_nodes` – positive integer specifying how many processes to spawn.
+- `topology` – one of `full`, `line`, `3D`, `imp3D`.
+- `algorithm` – `gossip` or `push-sum`.
+- `fail` – optional probability (per scheduling tick) that a node crashes permanently. Defaults to `0.0`.
 
-## How to Use It
-
-It's super simple! Just run:
+### Example Command Matrix
 ```bash
-cd lukas
-gleam run -- <N> <k>
+# Gossip without failures
+gleam run -- 20 line gossip
+gleam run -- 50 full gossip
+gleam run -- 64 3D gossip
+gleam run -- 64 imp3D gossip
+
+# Gossip with failures
+gleam run -- 20 line gossip fail=0.2
+gleam run -- 50 full gossip fail=0.05
+gleam run -- 64 3D gossip fail=0.1
+gleam run -- 64 imp3D gossip fail=0.1
+
+# Push-Sum without failures
+gleam run -- 20 line push-sum
+gleam run -- 50 full push-sum
+gleam run -- 64 3D push-sum
+gleam run -- 64 imp3D push-sum
+
+# Push-Sum with failures
+gleam run -- 20 line push-sum fail=0.1
+gleam run -- 50 full push-sum fail=0.05
+gleam run -- 64 3D push-sum fail=0.1
+gleam run -- 64 imp3D push-sum fail=0.1
 ```
 
-Where:
-- `N` = upper limit to search up to
-- `k` = how many consecutive numbers in each sequence
-
-**Try these examples:**
-```bash
-# Small problem with detailed steps
-gleam run -- 25 2
-
-# Medium problem 
-gleam run -- 2000 3
-
-# Big problem (this will flex those CPU cores!)
-gleam run -- 100000 4
+### Sample Output
+```text
+Topology: line
+Nodes: 20
+Edges: 19
+Degree range: 1 - 2
+Average degree: 1.90
+Failure rate: 0.20
+Converged target: 1/20
+Converged nodes: 1/3
+Dead nodes: 17
+Algorithm: gossip, Topology: line
+Elapsed (ms): 409
+metrics,20,line,gossip,0.2,completed,409,17,1,1
+409
 ```
+- The `metrics,...` line is CSV-friendly and encodes `num_nodes, topology, algorithm, fail_rate, status, elapsed_ms, dead_nodes, done_nodes, target`.
+- The final plain integer is preserved for legacy automation that expects only the elapsed milliseconds.
+- High failure rates (for example `fail=0.2`) often lead to zero converged nodes because most actors crash before they receive enough rumours or stabilise their push-sum ratios. See the failure deep-dive below for mitigation tips.
 
-## What Happens When You Run It
+## How the Simulation Works
+1. **Topology construction** – `main.gleam` builds the selected graph and prints degree statistics. Nodes are labelled `[0, n-1]` and neighbour lists are derived from the topology module.
+2. **Coordinator bootstrap** – A supervisor actor tracks convergence. It receives `NodeDone` and `NodeDead` messages and knows the total node count and target percentage (60%).
+3. **Node spawn** – Each node actor receives a deterministic RNG seeded by its ID plus configuration such as gossip threshold, epsilon, and failure rate.
+4. **Neighbour handshake** – Nodes exchange subjects so they can message each other directly.
+5. **Protocol execution** – The CLI seeds initial gossip rumours into three nodes (first, middle, last) or starts push-sum from node zero. Nodes idle-loop aggressively to keep rumours flowing.
+6. **Convergence detection** – Gossip convergence happens when a node hears the rumour `gossip_threshold` times (default 2) and notifies the supervisor. Push-Sum convergence requires three successive ratio deltas below epsilon (`1e-10`).
+7. **Completion** – When the coordinator sees `>= 60%` of *alive* nodes converged, it replies to the CLI with a `RunStats` record. The CLI prints stats, metrics, and elapsed time.
 
-1. **Setup Phase**: Shows you the problem size and how many worker processes it's creating
-2. **Performance Estimates**: Gives you a heads-up on expected timing
-3. **Processing**: Workers crunch numbers in parallel
-4. **Results**: 
-   - For small problems (N ≤ 100): Shows every calculation step
-   - For big problems: Just shows the summary and solutions found
-5. **Metrics File**: Automatically saves detailed performance stats to a text file
+## Failure Model Deep-Dive
+- **Trigger** – Before each message receive+ticker cycle, a node samples `rand_utils.next_float`. If the value is `< fail_rate`, the node is flagged as dead.
+- **One-time teardown** – A dying node emits `NodeDead(id)` to the supervisor and stops processing its mailbox. It no longer forwards gossip or participates in push-sum averaging.
+- **Supervisor accounting** – For every `NodeDead`, the coordinator recomputes `target = max(1, ceil(0.6 * alive))`, where `alive = total_nodes - dead`. If all nodes die, the run returns immediately with status `timeout`.
+- **Converged-but-dead** – Nodes that converged before dying still count toward `done` in the metrics line, which helps diagnose partially successful runs.
+- **Deterministic chaos** – Each node’s RNG seed is derived from its ID (`id * 7919 + 7`), so repeated runs with the same `fail` value reproduce the same failure pattern unless you change the seeding formula.
+- **Why you might see `Converged nodes: 0/x`** – With aggressive failure probabilities and the 50 ms polling cadence, many nodes flip to the dead state early. Dead nodes stop forwarding messages, isolating survivors and starving them of updates. Lower `fail`, loosen convergence thresholds, or extend the timeout if you want convergence to succeed more often.
 
-## The Secret Sauce: How Parallelism Works
+## Collecting Experimental Data
+1. Append the `metrics` line to a CSV:
+   ```bash
+   for rate in 0.00 0.05 0.10 0.15 0.20; do
+     gleam run -- 200 full gossip fail=$rate >> results.csv
+   done
+   ```
+2. Load `results.csv` into your plotting tool of choice (spreadsheet, `gnuplot`, `R`, etc.).
+3. Plot convergence time vs. `fail_rate`, success rate (status == `completed`), and dead node counts.
+4. Summarise methodology, plots, and observations in `Report-bonus.pdf` and archive the repository as `project2-bonus.tgz` if you are submitting the bonus assignment.
 
-This is where it gets cool! The program uses Erlang's actor model:
+## Configuration Knobs
+- **Gossip threshold** – Adjusted in `main.gleam` when spawning nodes (defaults to 2).
+- **Push-Sum epsilon** – `1.0e-10`; change in `actors.gleam` if you need faster/slower convergence.
+- **Timeout** – Global cap of 3 s in `wait_for_done_with_timeout`; increase for large graphs.
+- **Failure rate** – CLI option `fail=<rate>`; validated between 0.0 and 1.0 inclusive.
+- **RNG seeding** – Change the base seed or per-node seed calculation if you want non-deterministic runs.
 
-```
-       Boss Actor (coordinator)
-            |
-    ┌───────┼───────┐
-    │       │       │
- Worker1  Worker2  Worker3  ...
-```
+## Debugging & Troubleshooting
+- `gleam` not found – ensure the binary is on your `PATH`; restart the shell if installed via Homebrew/asdf.
+- `erlang` missing – install Erlang/OTP ≥ 26 (macOS: `brew install erlang`, Ubuntu: `sudo apt install erlang`).
+- Timeouts without convergence – try denser topologies (`full`, `imp3D`), increase the overall timeout, or lower the failure rate.
+- Too many node deaths – reduce `fail`, or adjust gossip/push-sum thresholds to converge faster before the failure wave.
 
-**The Strategy:**
-- Split the work into chunks (work units)
-- Each worker gets a range to process
-- Workers run completely independently 
-- Boss collects all results when done
+## Extending the Project
+- Add new topologies by extending `Topology` and providing a builder in `src/topology.gleam`.
+- Implement alternative failure models (e.g. temporary link drops, recoveries) by enriching `actors.gleam` and complementing supervisor statistics.
+- Enhance testing with gleeunit by driving smaller networks deterministically and asserting on elapsed times or metrics lines.
+- Export additional metrics (CSV/JSON) from `main.gleam` if you need richer analysis or integration with plotting scripts.
 
-**Work Distribution Logic:**
-```gleam
-work_unit_size = case problem_size {
-  n > 10000  -> 1000  // Big chunks for big problems
-  n > 1000   -> 200   // Medium chunks
-  _          -> 10    // Small chunks (forces more workers)
-}
-```
-
-This ensures you get good parallelism even for smaller problems!
-
-## Under the Hood: The Math Functions
-
-### Core Functions
-
-**`is_perfect_square(n)`** - Checks if a number is a perfect square
-```gleam
-// Uses floating point square root, then verifies with integers
-// Example: is_perfect_square(25) -> True (because 5² = 25)
-```
-
-**`sum_of_squares(start, k)`** - Adds up k consecutive squares
-```gleam
-// Example: sum_of_squares(3, 2) -> 3² + 4² = 9 + 16 = 25
-```
-
-**`find_solutions_in_range(start, end, k)`** - The main algorithm
-```gleam
-// Tests every starting point in the range
-// Returns list of valid starting points
-```
-
-### The Algorithm
-It's basically a smart brute force approach:
-1. For each possible starting point `s` from 1 to N
-2. Calculate `s² + (s+1)² + ... + (s+k-1)²`
-3. Check if the result is a perfect square
-4. If yes, record `s` as a solution
-
-The magic is in doing steps 1-4 across multiple CPU cores simultaneously!
-
-## Performance Metrics That Matter
-
-The program tracks several key metrics:
-
-**CPU Time / Real Time Ratio** - This is the big one!
-- Ratio > 2.0 = Great parallelism (multiple cores working hard)
-- Ratio 1.1-2.0 = Some parallelism 
-- Ratio ≤ 1.1 = Barely any parallelism (not good!)
-
-**Other Cool Stats:**
-- Real execution time
-- Solutions found per second (throughput)
-- Number of worker processes created
-- Memory efficiency
-
-## Output Files
-
-Every run creates a detailed metrics file like `metrics_N2000_k3.txt` containing:
-- All the performance statistics
-- Complete list of solutions found
-- System architecture details
-- Timing breakdown
-
-These files are saved in the project directory for later analysis.
-
-## Examples in Action
-
-**Small Problem (shows every step):**
-```
-$ gleam run -- 25 2
-
-s = 1 → 1² + 2² = 1 + 4 = 5 (not a perfect square)
-s = 2 → 2² + 3² = 4 + 9 = 13 (not a perfect square)  
-s = 3 → 3² + 4² = 9 + 16 = 25 = 5² ✓ SOLUTION!
-...
-```
-
-**Large Problem (summary mode):**
-```
-$ gleam run -- 10000 2
-
-🚀 STARTING PARALLEL PROCESSING...
-Workers: 10, Actors: 11 total
-Expected CPU/Real ratio: ~8.5x
-
-📋 RESULTS:
-Found 13 perfect square solutions!
-CPU/Real ratio: 8.2 (excellent parallelism!)
-```
-
-## Dependencies We Use
-
-The project is pretty lightweight:
-- `gleam_stdlib` - Basic Gleam functions
-- `gleam_otp` - The actor model magic ⭐
-- `gleam_erlang` - Erlang integration
-- `argv` - Command line argument parsing
-- `simplifile` - File operations for saving metrics
-
-All managed through Gleam's package manager automatically!
-
-## Technical Details (for the curious)
-
-**Runtime Environment:**
-- BEAM Virtual Machine (same as Erlang/Elixir)
-- Preemptive scheduling across all CPU cores
-- Fault-tolerant with supervisor trees
-- Shared-nothing memory model per actor
-
-**Performance Characteristics:**
-- Successfully tested up to N=10,000,000 
-- Scales linearly with problem size
-- Minimal overhead from message passing
-- Memory usage stays reasonable even with hundreds of workers
-
-## Troubleshooting
-
-**"Not enough parallelism" (ratio < 1.5):**
-- Try a larger N value 
-- Check if you have multiple CPU cores
-- Make sure the work unit size isn't too large
-
-**"Out of memory":**
-- Reduce the work unit size in the code
-- Try smaller N values first
-
-**"Takes Longer time to compute":**
-- Start with smaller problems (N < 10000)
-- Check your CPU - this is computationally intensive!
-- **Test Input:** (N = 1,000,000 , K = 4)  
-- **Result:** ✅ Solution successfully computed  
-- **Performance:** ⚡ **CPU Time / Real Time Ratio = 850.0**
-
-
-## The Math Behind It All
-
-This problem is related to some fascinating number theory:
-- Pythagorean triples (like 3, 4, 5)
-- Square pyramidal numbers
-- Sums of consecutive squares
-
-
-**Authors:** 
-- Somu Geetha Sravya [LinkedIn](https://www.linkedin.com/in/geetha-sravya-somu/)
-- Tharun Kamsala [LinkedIn](https://www.linkedin.com/in/tharun-kamsala-b648571b9/)
-
-
+Happy simulating!
