@@ -88,3 +88,20 @@ If you want an automated run, use:
 PORT=8081 bash test_script.sh
 ```
 It starts the server if the port is free and runs the full flow (register, status, subs, signed posts, comments/replies, votes, DM, feeds, post-detail, metrics).
+
+
+
+# Public key lookup
+curl http://localhost:8081/api/v1/public_keys/tharun
+curl http://localhost:8081/api/v1/public_keys/sravya
+
+# Feed (use the session token printed on login for each user)
+curl -H "Authorization: Bearer <tharun_token>" http://localhost:8081/api/v1/feed/tharun
+curl -H "Authorization: Bearer <sravya_token>" http://localhost:8081/api/v1/feed/sravya
+
+# Post detail
+curl -H "Authorization: Bearer <sravya_token>" http://localhost:8081/api/v1/posts/1
+
+# Metrics
+curl -H "Authorization: Bearer <tharun_token>" http://localhost:8081/api/v1/metrics
+
