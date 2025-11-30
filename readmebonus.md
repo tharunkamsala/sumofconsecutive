@@ -13,12 +13,12 @@ Keep this visible to capture requests.
 **Terminal 2 (User A: alice)**
 ```bash
 gleam run -m reddit_clone/rest_cli_main -- --port 8081
-register alice
-login alice
+register tharun
+login tharun
 status online
 create-sub news
 join-sub news
-post news keys/alice_private.pem "Hello from Alice!"
+post news keys/tharun_private.pem "Hello from Alice!"
 feed
 post-detail 1        # use actual ID from feed if different
 my-posts
@@ -28,14 +28,14 @@ metrics              # shows totals + online users
 **Terminal 3 (User B: bob)**
 ```bash
 gleam run -m reddit_clone/rest_cli_main -- --port 8081
-register bob
-login bob
+register sravya
+login sravya
 status online
 join-sub news
 feed                      # sees Alice’s post
-comment 1 "Hi Alice!"     # use actual post ID from feed
+comment 1 "Hi heyyyy!"     # use actual post ID from feed
 vote-post 1 up
-dm alice "Nice post!"
+dm tharun "Nice post!"
 dm-threads
 metrics
 ```
@@ -58,13 +58,13 @@ gleam run -m reddit_clone/rest_main -- 8081
 **Terminal 2 (User: alice)**
 ```bash
 gleam run -m reddit_clone/rest_cli_main -- --port 8081
-register alice
-ls keys/alice_*pem             # show key files
-head -n 3 keys/alice_public.pem  # optional peek
+register tharun
+ls keys/tharun_*pem             # show key files
+head -n 3 keys/tharun_public.pem  # optional peek
 login alice
 create-sub news
 join-sub news
-post news keys/alice_private.pem "Signed hello"
+post news keys/tharun_private.pem "Signed hello"
 feed
 post-detail 1                   # use actual ID; signature verified on fetch
 curl http://localhost:8081/api/v1/public_keys/alice   # public key lookup
@@ -72,7 +72,7 @@ curl http://localhost:8081/api/v1/public_keys/alice   # public key lookup
 
 **Negative case (wrong key)**
 ```bash
-post news keys/bob_private.pem "Should fail"   # expect signature_rejected/400
+post news keys/sravya_private.pem "Should fail"   # expect signature_rejected/400
 ```
 
 **Show metrics**
