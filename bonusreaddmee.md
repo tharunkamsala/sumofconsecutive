@@ -10,33 +10,38 @@ Open CLI:
 gleam run -m reddit_clone/rest_cli_main -- --port 8081
 ```
 
-Commands to show all bonus requirements:
+Step-by-step commands to show all bonus requirements:
 ```
-# 1) Register (generates keys)
+# Start server (one terminal)
+gleam run -m reddit_clone/rest_main -- 8081
+
+# Open CLI (another terminal)
+gleam run -m reddit_clone/rest_cli_main -- --port 8081
+
+# 1) User provides a public key on registration (auto-generates RSA-2048)
 register alice
 ls keys/alice_*pem
+cat keys/alice_public.pem    # optional: show public key
 
-# 2) Login (signature-based)
+# 2) Login (signature-based) and create/join a subreddit
 login alice
-
-# 3) Create & join subreddit
 create-sub news
 join-sub news
 
-# 4) Post with signature (verified on create)
+# 3) Post with signature (computed at posting)
 post news keys/alice_private.pem "Signed hello"
 
-# 5) Verify on download (signature checked on fetch)
-feed                 # response includes signature_valid for each post
-post-detail 1        # use actual ID if different; shows signature_valid true
+# 4) Signature checked on download
+feed                 # shows posts and signature_valid
+post-detail 1        # use actual ID; shows signature_valid true
 
-# 6) Public key lookup (via REST, run in a normal terminal)
+# 5) Any user can fetch another user's public key (run in normal terminal)
 curl http://localhost:8081/api/v1/public_keys/alice
 
-# 7) Rejection on bad signature (use wrong key)
+# 6) Rejection on bad signature (wrong key)
 post news keys/tharun_private.pem "Should fail"
 
-# 8) (Optional) Post detail via REST to see signature_valid
+# 7) (Optional) Post detail via REST to see signature_valid
 curl http://localhost:8081/api/v1/posts/1    # replace 1 with actual post ID
 ```
 
