@@ -1,1251 +1,1022 @@
-# Reddit Clone: REST API and Cryptographic Implementation Report
+# FlowPay - Complete Technical Documentation
 
-**Course Project Report**  
-**Project:** Reddit Clone with REST API, CLI Client, and Digital Signatures  
-**Date:** December 2, 2025
+> **A Full-Stack Fintech Platform for Digital Payments & Stock Trading**
 
 ---
 
-## Table of Contents
+## 📋 Table of Contents
 
-1. [Problem Definition](#1-problem-definition)
-2. [System Architecture](#2-system-architecture)
-3. [REST API Implementation](#3-rest-api-implementation)
-4. [Command Line Client](#4-command-line-client)
-5. [Multiple Clients Demonstration](#5-multiple-clients-demonstration)
-6. [Digital Signature Bonus Implementation](#6-digital-signature-bonus-implementation)
-7. [Execution Instructions](#7-execution-instructions)
-8. [Testing and Verification](#8-testing-and-verification)
-9. [Performance Analysis](#9-performance-analysis)
-10. [Conclusion](#10-conclusion)
+1. [Executive Summary](#executive-summary)
+2. [System Architecture](#system-architecture)
+3. [Technology Stack](#technology-stack)
+4. [Database Design](#database-design)
+5. [API Architecture](#api-architecture)
+6. [Authentication & Security](#authentication--security)
+7. [Core Features](#core-features)
+8. [Trading Platform](#trading-platform)
+9. [Performance Optimizations](#performance-optimizations)
+10. [Deployment Guide](#deployment-guide)
 
 ---
 
-## 1. Problem Definition
+## 1. Executive Summary
 
-### 1.1 Project Requirements
+**FlowPay** is a comprehensive fintech platform that combines digital banking, peer-to-peer payments, bill management, loans, virtual cards, merchant services, and stock trading into a unified ecosystem.
 
-This project implements a Reddit-like social media platform with the following core requirements:
+### Key Highlights
 
-#### **Primary Requirements:**
+| Metric | Value |
+|--------|-------|
+| **Architecture** | Microservices (2 Backend Services + 1 Frontend) |
+| **Backend Language** | Go (Golang) 1.21+ |
+| **Frontend Framework** | Angular 19 |
+| **Database** | SQLite with GORM ORM |
+| **Authentication** | JWT (JSON Web Tokens) + Google OAuth |
+| **API Style** | RESTful with JSON payloads |
 
-1. **REST API Interface**
-   - Implement REST API for the Reddit engine from Project 4.1
-   - Structure similar to Reddit's official API
-   - Support all engine functionality via HTTP
+### Services Overview
 
-2. **Simple Command-Line Client**
-   - CLI client that uses REST API
-   - Perform all supported functionality
-   - User-friendly command interface
-
-3. **Multiple Clients Support**
-   - Run engine with multiple concurrent clients
-   - Demonstrate functionality with video/demo
-   - Show client-server communication
-
-#### **Bonus Requirement:**
-
-4. **Public Key Digital Signatures**
-   - RSA-4096 or 256-bit Elliptic Curve signatures
-   - Public key provided on registration
-   - Mechanism to retrieve any user's public key
-   - Posts signed at creation time
-   - Signature verification on post download
-
-### 1.2 Implementation Overview
-
-**Language:** Gleam (functional language on Erlang VM)  
-**Runtime:** Erlang/OTP 25.0+  
-**Architecture:** Actor-model with message-passing concurrency  
-**Security:** RSA-4096 digital signatures using OpenSSL
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FlowPay Ecosystem                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐    ┌─────────────────┐                    │
+│  │  flowpay-frontend│    │                 │                    │
+│  │  (Angular 19)    │◄──►│   Web Browser   │                    │
+│  │  Port: 4200      │    │                 │                    │
+│  └────────┬─────────┘    └─────────────────┘                    │
+│           │                                                     │
+│           ▼                                                     │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │                   API Gateway Layer                  │       │
+│  └─────────────────────────────────────────────────────┘       │
+│           │                           │                         │
+│           ▼                           ▼                         │
+│  ┌─────────────────┐         ┌─────────────────┐               │
+│  │ flowpay-backend │         │ flowpay-trading │               │
+│  │ (Main Banking)  │         │ (Stock Trading) │               │
+│  │ Port: 8080      │         │ Port: 8081      │               │
+│  └────────┬────────┘         └────────┬────────┘               │
+│           │                           │                         │
+│           ▼                           ▼                         │
+│  ┌─────────────────┐         ┌─────────────────┐               │
+│  │  flowpay.db     │         │   trading.db    │               │
+│  │  (SQLite)       │         │   (SQLite)      │               │
+│  └─────────────────┘         └─────────────────┘               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 2. System Architecture
 
-### 2.1 High-Level Architecture
+### 2.1 Microservices Architecture
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        CLI[CLI Client<br/>rest_cli_main.gleam]
-        HTTP[HTTP Clients<br/>curl/REST API]
-        SIM[Simulator<br/>sim.gleam]
-    end
-    
-    subgraph "API Layer"
-        REST[REST Server<br/>rest_main.gleam]
-        ROUTER[Router<br/>router.gleam]
-        SESSION[Session Manager<br/>session.gleam]
-        SIGN[Crypto Module<br/>sign.gleam]
-    end
-    
-    subgraph "Core Engine"
-        ENGINE[Engine Process<br/>engine.gleam]
-        STATE[State Manager<br/>state.gleam]
-        TYPES[Type Definitions<br/>types.gleam]
-    end
-    
-    CLI -->|HTTP Requests| REST
-    HTTP -->|HTTP Requests| REST
-    SIM -->|Direct Calls| ENGINE
-    REST --> ROUTER
-    ROUTER --> SESSION
-    ROUTER --> SIGN
-    ROUTER -->|Messages| ENGINE
-    ENGINE --> STATE
-    STATE --> TYPES
+FlowPay follows a **microservices architecture** with clear separation of concerns:
+
+#### Main Backend Service (Port 8080)
+- **Purpose**: Core banking operations
+- **Responsibilities**:
+  - User authentication & authorization
+  - Wallet management
+  - P2P transfers
+  - Bill payments
+  - Loans & EMI management
+  - Virtual cards
+  - Merchant/QR payments
+  - Rewards & cashback
+
+#### Trading Service (Port 8081)
+- **Purpose**: Stock trading operations
+- **Responsibilities**:
+  - Stock market data (via RapidAPI)
+  - Trading account management
+  - Buy/Sell order execution
+  - Portfolio management
+  - Watchlist management
+  - Trade history
+
+### 2.2 Application Layers
+
 ```
-
-### 2.2 Component Descriptions
-
-#### **Engine Layer**
-- **Purpose:** Core business logic and state management
-- **Implementation:** Single Erlang process handling all state mutations
-- **Communication:** Message-based request/response pattern
-- **Data:**
-  - Accounts (users, karma, memberships)
-  - Subreddits (posts, members, moderators)
-  - Posts and Comments
-  - Votes and Karma
-  - Direct Messages
-  - Metrics
-
-#### **REST API Layer**
-- **Purpose:** HTTP interface to engine
-- **Server:** Custom TCP server with HTTP parsing
-- **Routing:** Pattern-matched endpoint handling
-- **Authentication:** Session token-based auth
-- **Serialization:** JSON via `thoas` library
-
-#### **Client Layer**
-- **CLI Client:** Interactive command-line interface
-- **HTTP Clients:** Any HTTP client (curl, Postman, etc.)
-- **Simulator:** Automated multi-process testing
-
-### 2.3 Process Model
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant REST Server
-    participant Engine
-    participant State
-    
-    Client->>REST Server: HTTP POST /api/v1/posts
-    REST Server->>REST Server: Parse JSON
-    REST Server->>REST Server: Validate Session
-    REST Server->>REST Server: Verify Signature
-    REST Server->>Engine: CreatePost Message
-    Engine->>State: Update State
-    State-->>Engine: New State
-    Engine-->>REST Server: PostSnapshot
-    REST Server->>REST Server: Serialize JSON
-    REST Server-->>Client: HTTP 201 Created
+┌──────────────────────────────────────────────────────────────┐
+│                      PRESENTATION LAYER                       │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  Angular 19 SPA with Standalone Components              │ │
+│  │  • Route Guards (Auth/Guest)                            │ │
+│  │  • HTTP Interceptors (Token Injection)                  │ │
+│  │  • Reactive Services (RxJS Observables)                 │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│                         API LAYER                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  Gin HTTP Router                                        │ │
+│  │  • RESTful Endpoints                                    │ │
+│  │  • CORS Middleware                                      │ │
+│  │  • JWT Auth Middleware                                  │ │
+│  │  • Request Validation                                   │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│                       SERVICE LAYER                           │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  Business Logic Services                                │ │
+│  │  • AuthService      • WalletService                     │ │
+│  │  • TransferService  • BillService                       │ │
+│  │  • LoanService      • CardService                       │ │
+│  │  • QRService        • RewardService                     │ │
+│  │  • StockService     • TradingService                    │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│                        DATA LAYER                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  GORM ORM with SQLite                                   │ │
+│  │  • Auto-migrations                                      │ │
+│  │  • Relationships (HasOne, HasMany, BelongsTo)          │ │
+│  │  • Soft Deletes                                         │ │
+│  │  • Transactions with Rollback                           │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
 ```
-
-**Key Properties:**
-- **Single Engine Process:** Eliminates need for locks
-- **Message Passing:** Type-safe communication
-- **Immutable State:** Functional state updates
-- **Supervisor Tree:** OTP-style fault tolerance
 
 ---
 
-## 3. REST API Implementation
+## 3. Technology Stack
 
-### 3.1 API Design Principles
+### 3.1 Backend Technologies
 
-1. **RESTful:** Resource-oriented URLs
-2. **Stateless:** Each request self-contained
-3. **JSON:** All request/response bodies in JSON
-4. **HTTP Verbs:** GET, POST, PUT, DELETE
-5. **Status Codes:** Proper HTTP status codes
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Language** | Go (Golang) | 1.21+ | High-performance backend |
+| **Web Framework** | Gin | v1.9+ | HTTP routing & middleware |
+| **ORM** | GORM | v1.25+ | Database operations |
+| **Database** | SQLite | 3.x | Embedded database |
+| **JWT Library** | golang-jwt | v5 | Token generation/validation |
+| **Decimal** | shopspring/decimal | - | Precise financial calculations |
+| **UUID** | google/uuid | - | Unique identifiers |
+| **QR Code** | skip2/go-qrcode | - | QR code generation |
+| **Password** | bcrypt | - | Password hashing |
+| **Environment** | godotenv | - | Environment variables |
 
-### 3.2 Complete API Reference
+### 3.2 Frontend Technologies
 
-#### **Account Management**
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Framework** | Angular | 19 | SPA framework |
+| **Language** | TypeScript | 5.x | Type-safe JavaScript |
+| **HTTP Client** | HttpClient | Built-in | API communication |
+| **Routing** | Angular Router | Built-in | Navigation |
+| **State** | RxJS | 7.x | Reactive programming |
+| **Styling** | SCSS | - | CSS preprocessing |
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/v1/accounts` | Register new user | No |
-| GET | `/api/v1/accounts/:username` | Get user info | No |
-| POST | `/api/v1/auth/login` | Login (get session token) | No |
-| PUT | `/api/v1/users/:username/status` | Set online/offline | Yes |
-| GET | `/api/v1/users/:username/karma` | Get user karma | No |
-| GET | `/api/v1/public_keys/:username` | Get user's public key | No |
+### 3.3 External Integrations
 
-#### **Subreddit Operations**
+| Service | Provider | Purpose |
+|---------|----------|---------|
+| **Stock Data** | RapidAPI (Indian Stock Exchange API) | Real-time stock quotes & charts |
+| **OAuth** | Google | Social authentication |
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/subreddits` | List all subreddits | No |
-| POST | `/api/v1/subreddits` | Create subreddit | Yes |
-| GET | `/api/v1/subreddits/:name` | Get subreddit details | No |
-| POST | `/api/v1/subreddits/:name/members` | Join subreddit | Yes |
-| DELETE | `/api/v1/subreddits/:name/members/:user` | Leave subreddit | Yes |
-| GET | `/api/v1/subreddits/:name/posts` | Get subreddit feed | No |
+---
 
-#### **Content Operations**
+## 4. Database Design
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/v1/posts` | Create signed post | Yes |
-| GET | `/api/v1/posts/:id` | Get post details + comments | No |
-| POST | `/api/v1/posts/:id/comments` | Add comment | Yes |
-| GET | `/api/v1/posts/:id/comments` | Get post comments | No |
-| POST | `/api/v1/posts/:id/votes` | Vote on post | Yes |
-| POST | `/api/v1/comments/:id/votes` | Vote on comment | Yes |
+### 4.1 Entity Relationship Diagram
 
-#### **Feed and Messaging**
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/feed?username=:user` | Get user's personalized feed | No |
-| POST | `/api/v1/messages` | Send direct message | Yes |
-| GET | `/api/v1/users/:username/messages` | Get user's messages | Yes |
-
-#### **Metrics**
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/metrics` | Get server metrics | No |
-
-### 3.3 Request/Response Examples
-
-#### Register User
-
-**Request:**
-```bash
-curl -X POST http://localhost:8081/api/v1/accounts \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "username": "alice",
-    "public_key": "-----BEGIN RSA PUBLIC KEY-----\\nMIICCgKC..."
-  }'
+```
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│      User       │       │     Wallet      │       │  Transaction    │
+├─────────────────┤       ├─────────────────┤       ├─────────────────┤
+│ id (UUID) PK    │──┐    │ id (UUID) PK    │   ┌──│ id (UUID) PK    │
+│ email           │  │    │ user_id FK      │◄──┤  │ from_user_id FK │
+│ phone           │  │    │ balance         │   │  │ to_user_id FK   │
+│ password_hash   │  └───►│ currency        │   │  │ amount          │
+│ full_name       │       │ is_active       │   │  │ fee             │
+│ username        │       └─────────────────┘   │  │ type            │
+│ kyc_status      │                             │  │ status          │
+│ credit_score    │                             │  │ description     │
+│ google_id       │◄────────────────────────────┘  └─────────────────┘
+└────────┬────────┘
+         │
+    ┌────┴────┬────────────┬───────────┬───────────┐
+    ▼         ▼            ▼           ▼           ▼
+┌───────┐ ┌───────┐  ┌──────────┐ ┌────────┐ ┌──────────┐
+│ Loan  │ │ Card  │  │ Merchant │ │ Reward │ │SavedBiller│
+└───────┘ └───────┘  └──────────┘ └────────┘ └──────────┘
 ```
 
-**Response:**
-```json
-{
-  "username": "alice",
-  "karma": 0,
-  "created_at": 1701475200000,
-  "status": "online"
+### 4.2 Main Backend Models (flowpay.db)
+
+#### User Model
+```go
+type User struct {
+    ID             uuid.UUID     // Primary Key
+    Email          string        // Unique, indexed
+    Phone          string        // Unique, indexed
+    PasswordHash   string        // bcrypt hashed
+    FullName       string
+    Username       string        // Unique, indexed
+    Avatar         string
+    KYCStatus      KYCStatus     // pending, verified, rejected
+    DateOfBirth    *time.Time
+    Address        string
+    SSNLast4       string        // Sensitive, never exposed
+    PersonalQRData string        // For receiving payments
+    GoogleID       string        // OAuth integration
+    AuthProvider   string        // email, google
+    CreditScore    int           // Default: 650
+    // Relations
+    Wallet         *Wallet
+    Transactions   []Transaction
+    Loans          []Loan
+    Cards          []VirtualCard
+    Merchant       *Merchant
 }
 ```
 
-#### Create Signed Post
-
-**Request:**
-```bash
-curl -X POST http://localhost:8081/api/v1/posts \\
-  -H "Authorization: Bearer <session_token>" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "author": "alice",
-    "subreddit": "news",
-    "content": "Hello World!",
-    "signature": "a3f5b2c8d9..."
-  }'
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "author": "alice",
-  "subreddit": "news",
-  "content": "Hello World!",
-  "created_at": 1701475300000,
-  "votes": 0,
-  "signature": "a3f5b2c8d9...",
-  "signature_valid": true
+#### Wallet Model
+```go
+type Wallet struct {
+    ID       uuid.UUID
+    UserID   uuid.UUID       // Foreign Key
+    Balance  decimal.Decimal // Precise currency handling
+    Currency string          // Default: USD
+    IsActive bool
 }
 ```
 
-#### Get Post with Signature Verification
-
-**Request:**
-```bash
-curl http://localhost:8081/api/v1/posts/1
+#### Transaction Model
+```go
+type Transaction struct {
+    ID           uuid.UUID
+    FromUserID   *uuid.UUID      // Nullable for deposits
+    ToUserID     *uuid.UUID      // Nullable for withdrawals
+    FromWalletID *uuid.UUID
+    ToWalletID   *uuid.UUID
+    Amount       decimal.Decimal
+    Fee          decimal.Decimal
+    Type         TransactionType  // deposit, withdraw, p2p_send, etc.
+    Status       TransactionStatus // pending, completed, failed
+    Reference    string           // Auto-generated unique ref
+    Description  string
+    Metadata     json.RawMessage
+}
 ```
 
-**Response:**
+#### Loan Model
+```go
+type Loan struct {
+    ID              string
+    UserID          string
+    Amount          float64
+    InterestRate    float64     // Annual percentage
+    TermMonths      int
+    EMIAmount       float64     // Calculated monthly payment
+    TotalAmount     float64
+    PaidAmount      float64
+    RemainingAmount float64
+    Status          LoanStatus  // pending, approved, active, paid
+    Purpose         string
+    NextPaymentDate *time.Time
+}
+```
+
+### 4.3 Trading Service Models (trading.db)
+
+#### TradingAccount Model
+```go
+type TradingAccount struct {
+    ID               uuid.UUID
+    UserID           uuid.UUID        // Links to main backend user
+    Status           VerificationStatus
+    // KYC Fields
+    DateOfBirth      *time.Time
+    SSNHash          string           // SHA-256 hashed
+    RiskAcknowledged bool
+    // Portfolio
+    BuyingPower      decimal.Decimal
+    PortfolioValue   decimal.Decimal
+    TotalGainLoss    decimal.Decimal
+    TotalGainLossPct decimal.Decimal
+}
+```
+
+#### Position Model
+```go
+type Position struct {
+    ID              uuid.UUID
+    AccountID       uuid.UUID
+    Symbol          string
+    CompanyName     string
+    Quantity        decimal.Decimal
+    AvgCostBasis    decimal.Decimal
+    CurrentPrice    decimal.Decimal
+    MarketValue     decimal.Decimal
+    UnrealizedPL    decimal.Decimal
+    UnrealizedPLPct decimal.Decimal
+}
+```
+
+#### Trade Model
+```go
+type Trade struct {
+    ID          uuid.UUID
+    AccountID   uuid.UUID
+    Symbol      string
+    Type        TradeType   // buy, sell
+    Status      TradeStatus // pending, filled, cancelled
+    Quantity    decimal.Decimal
+    Price       decimal.Decimal
+    TotalValue  decimal.Decimal
+    Fee         decimal.Decimal
+    FilledAt    *time.Time
+}
+```
+
+---
+
+## 5. API Architecture
+
+### 5.1 Main Backend API (Port 8080)
+
+#### Authentication Endpoints
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/v1/auth/register` | Register new user | ❌ |
+| POST | `/api/v1/auth/login` | Login with email/password | ❌ |
+| POST | `/api/v1/auth/google` | Google OAuth login | ❌ |
+| GET | `/api/v1/auth/me` | Get current user profile | ✅ |
+| POST | `/api/v1/auth/kyc` | Submit KYC verification | ✅ |
+
+#### Wallet Endpoints
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/v1/wallet` | Get wallet balance | ✅ |
+| POST | `/api/v1/wallet/add` | Add money to wallet | ✅ |
+| POST | `/api/v1/wallet/withdraw` | Withdraw to bank | ✅ |
+| GET | `/api/v1/wallet/transactions` | Transaction history | ✅ |
+| GET | `/api/v1/wallet/statement` | Download statement (CSV/PDF) | ✅ |
+
+#### Transfer Endpoints
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/v1/transfer/send` | Send money P2P | ✅ |
+| GET | `/api/v1/transfer/contacts` | Recent contacts | ✅ |
+| GET | `/api/v1/transfer/search` | Search users | ✅ |
+| POST | `/api/v1/transfer/otp` | Generate transfer OTP | ✅ |
+
+#### Bill Payments
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/v1/bills/categories` | Bill categories | ✅ |
+| GET | `/api/v1/bills/billers` | Available billers | ✅ |
+| GET | `/api/v1/bills/saved` | Saved billers | ✅ |
+| POST | `/api/v1/bills/pay` | Pay a bill | ✅ |
+
+#### Loans
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/v1/loans/offers` | Available loan offers | ✅ |
+| GET | `/api/v1/loans` | User's loans | ✅ |
+| POST | `/api/v1/loans/apply` | Apply for loan | ✅ |
+| GET | `/api/v1/loans/:id` | Get loan details | ✅ |
+| POST | `/api/v1/loans/:id/pay` | Make EMI payment | ✅ |
+
+#### Virtual Cards
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/v1/cards` | List user's cards | ✅ |
+| POST | `/api/v1/cards` | Create virtual card | ✅ |
+| GET | `/api/v1/cards/:id` | Get card info | ✅ |
+| POST | `/api/v1/cards/:id/otp` | Request card OTP | ✅ |
+| POST | `/api/v1/cards/:id/details` | Get full card details | ✅ |
+| POST | `/api/v1/cards/:id/freeze` | Freeze/Unfreeze card | ✅ |
+| PUT | `/api/v1/cards/:id/limits` | Update spending limits | ✅ |
+
+#### Merchant/QR Payments
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/v1/merchant/register` | Register as merchant | ✅ |
+| GET | `/api/v1/merchant` | Get merchant info | ✅ |
+| GET | `/api/v1/merchant/dashboard` | Merchant analytics | ✅ |
+| POST | `/api/v1/qr/generate` | Generate QR code | ✅ |
+| POST | `/api/v1/qr/pay` | Pay via QR | ✅ |
+
+### 5.2 Trading Service API (Port 8081)
+
+#### Stock Data (Public)
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/v1/stocks/search` | Search stocks | ❌ |
+| GET | `/api/v1/stocks/market-summary` | Market indices | ❌ |
+| GET | `/api/v1/stocks/all` | All available stocks | ❌ |
+| GET | `/api/v1/stocks/:symbol/quote` | Real-time quote | ❌ |
+| GET | `/api/v1/stocks/:symbol/details` | Stock details | ❌ |
+| GET | `/api/v1/stocks/:symbol/chart` | Price history | ❌ |
+| GET | `/api/v1/stocks/:symbol/news` | Stock news | ❌ |
+| GET | `/api/v1/stocks/india/most-active` | NSE most active | ❌ |
+| GET | `/api/v1/stocks/india/corporate-actions` | Dividends, splits | ❌ |
+
+#### Trading Operations (Protected)
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/v1/trading/account` | Trading account info | ✅ |
+| POST | `/api/v1/trading/verify` | Complete trading KYC | ✅ |
+| POST | `/api/v1/trading/deposit` | Add buying power | ✅ |
+| GET | `/api/v1/trading/portfolio` | User positions | ✅ |
+| POST | `/api/v1/trading/trade` | Execute buy/sell | ✅ |
+| GET | `/api/v1/trading/history` | Trade history | ✅ |
+| GET | `/api/v1/trading/watchlist` | Stock watchlist | ✅ |
+| POST | `/api/v1/trading/watchlist` | Add to watchlist | ✅ |
+| DELETE | `/api/v1/trading/watchlist/:symbol` | Remove from watchlist | ✅ |
+
+### 5.3 Request/Response Examples
+
+#### Login Request
+```json
+POST /api/v1/auth/login
+{
+    "email": "user@example.com",
+    "password": "password123"
+}
+```
+
+#### Login Response
 ```json
 {
-  "post": {
-    "id": 1,
-    "author": "alice",
-    "subreddit": "news",
-    "content": "Hello World!",
-    "created_at": 1701475300000,
-    "votes": 5,
-    "signature": "a3f5b2c8d9...",
-    "signature_valid": true
-  },
-  "comments": [
-    {
-      "id": 1,
-      "author": "bob",
-      "content": "Great post!",
-      "votes": 2
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "email": "user@example.com",
+        "full_name": "John Doe",
+        "username": "johndoe",
+        "kyc_status": "verified"
+    },
+    "wallet": {
+        "id": "660e8400-e29b-41d4-a716-446655440001",
+        "balance": "1000.00",
+        "currency": "USD"
     }
-  ]
 }
 ```
 
-### 3.4 Authentication Mechanism
+#### Execute Trade Request
+```json
+POST /api/v1/trading/trade
+Authorization: Bearer <token>
+{
+    "symbol": "RELIANCE",
+    "quantity": 10,
+    "type": "buy"
+}
+```
 
-**Session-Based Authentication:**
-
-1. User logs in via `/api/v1/auth/login`
-2. Server generates random session token
-3. Token returned to client
-4. Client includes token in `Authorization: Bearer <token>` header
-5. Server validates token for protected endpoints
-
-**Implementation:** `src/reddit_clone/rest/session.gleam`
-
-```gleam
-pub fn create_session(username: String) -> String
-pub fn validate_token(token: String) -> Result(String, Nil)
+#### Trade Response
+```json
+{
+    "trade": {
+        "id": "770e8400-e29b-41d4-a716-446655440002",
+        "symbol": "RELIANCE",
+        "company_name": "Reliance Industries Ltd",
+        "type": "buy",
+        "status": "filled",
+        "quantity": "10",
+        "price": "2856.50",
+        "total_value": "28565.00",
+        "fee": "0",
+        "filled_at": "2026-01-29T13:00:00Z"
+    },
+    "message": "Trade executed successfully"
+}
 ```
 
 ---
 
-## 4. Command Line Client
+## 6. Authentication & Security
 
-### 4.1 CLI Architecture
+### 6.1 JWT Authentication Flow
 
-**File:** `src/reddit_clone/rest_cli_main.gleam` (48,554 bytes)
+```
+┌──────────┐                    ┌──────────┐                    ┌──────────┐
+│  Client  │                    │  Server  │                    │ Database │
+└────┬─────┘                    └────┬─────┘                    └────┬─────┘
+     │                               │                               │
+     │  1. POST /auth/login          │                               │
+     │  {email, password}            │                               │
+     │──────────────────────────────►│                               │
+     │                               │  2. Verify credentials        │
+     │                               │──────────────────────────────►│
+     │                               │◄──────────────────────────────│
+     │                               │                               │
+     │                               │  3. Generate JWT              │
+     │                               │  (HS256, 7 days expiry)       │
+     │                               │                               │
+     │  4. Return token + user       │                               │
+     │◄──────────────────────────────│                               │
+     │                               │                               │
+     │  5. Request with Bearer token │                               │
+     │  Authorization: Bearer <jwt>  │                               │
+     │──────────────────────────────►│                               │
+     │                               │  6. Validate JWT              │
+     │                               │  Extract userID, email        │
+     │                               │                               │
+     │  7. Response                  │                               │
+     │◄──────────────────────────────│                               │
+```
+
+### 6.2 JWT Token Structure
+
+```go
+type Claims struct {
+    UserID   uuid.UUID `json:"user_id"`
+    Email    string    `json:"email"`
+    Username string    `json:"username"`
+    jwt.RegisteredClaims
+}
+
+// Token expiry: 7 days
+ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * 7 * time.Hour))
+```
+
+### 6.3 Security Features
+
+| Feature | Implementation |
+|---------|----------------|
+| **Password Hashing** | bcrypt with default cost (10) |
+| **Token Signing** | HMAC-SHA256 (HS256) |
+| **SSN Protection** | SHA-256 hashing, last 4 digits stored |
+| **CORS** | Configurable origins, credentials support |
+| **Input Validation** | Gin binding tags (required, min, email) |
+| **SQL Injection** | GORM parameterized queries |
+| **Rate Limiting** | Recommended for production |
+
+### 6.4 Middleware Chain
+
+```go
+// CORS Middleware
+func CORSMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+        c.Writer.Header().Set("Access-Control-Allow-Headers", 
+            "Content-Type, Authorization, X-Requested-With")
+        c.Writer.Header().Set("Access-Control-Allow-Methods", 
+            "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+        // Handle preflight
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(http.StatusNoContent)
+            return
+        }
+        c.Next()
+    }
+}
+
+// Auth Middleware
+func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // Extract Bearer token
+        // Validate JWT
+        // Set userID, email in context
+        c.Set("userID", claims.UserID)
+        c.Next()
+    }
+}
+```
+
+---
+
+## 7. Core Features
+
+### 7.1 Digital Wallet
+
+**Capabilities:**
+- Real-time balance tracking
+- Add money from bank/card
+- Withdraw to bank account
+- Transaction history with pagination
+- Downloadable statements (CSV/PDF)
+
+**Transaction Types:**
+| Type | Description |
+|------|-------------|
+| `deposit` | Money added to wallet |
+| `withdraw` | Money sent to bank |
+| `p2p_send` | Sent to another user |
+| `p2p_receive` | Received from another user |
+| `bill_pay` | Bill payment |
+| `merchant` | QR/Merchant payment |
+| `reward` | Cashback credit |
+| `refund` | Transaction refund |
+
+### 7.2 P2P Transfers
+
+**Flow:**
+1. Search recipient by username/email/phone
+2. Enter amount and optional note
+3. Generate OTP (optional for high-value)
+4. Confirm transfer
+5. Instant balance update
+6. Automatic cashback (1%)
+
+**Atomic Transaction Handling:**
+```go
+tx := database.DB.Begin()
+
+// Deduct from sender
+senderWallet.Balance = senderWallet.Balance.Sub(amount)
+tx.Save(&senderWallet)
+
+// Add to recipient
+recipientWallet.Balance = recipientWallet.Balance.Add(amount)
+tx.Save(&recipientWallet)
+
+// Create transaction record
+tx.Create(&transaction)
+
+tx.Commit() // or tx.Rollback() on error
+```
+
+### 7.3 Bill Payments
+
+**Supported Categories:**
+- Utilities (Electric, Water, Gas)
+- Internet & Phone
+- Subscriptions (Streaming)
+- Insurance
+- Rent
 
 **Features:**
-- Interactive prompt-based interface
-- Automatic session management
-- Cryptographic key handling
-- Colored output for readability
-- Error handling and validation
+- Save billers for quick access
+- 1.5% cashback on bill payments
+- Transaction receipts
 
-### 4.2 Available Commands
+### 7.4 Loans & EMI
 
-#### **Account Commands**
-```
-register <username>          - Register new user (auto-generates keys)
-login <username>             - Login and get session token
-status <online|offline>      - Set your online status
-logout                       - Logout (clear session)
-```
+**Loan Types:**
+| Type | Amount Range | Interest Rate | Term |
+|------|--------------|---------------|------|
+| Personal | $500 - $10,000 | 12.99% | 3-36 months |
+| Emergency | $100 - $2,000 | 15.99% | 1-12 months |
+| Premium | $5,000 - $50,000 | 8.99% | 12-60 months |
 
-#### **Subreddit Commands**
-```
-create-sub <name>            - Create a subreddit
-join-sub <name>              - Join a subreddit
-leave-sub <name>             - Leave a subreddit
-list-subs                    - List all subreddits
-```
+**Interest Rate Calculation:**
+```go
+func getInterestRate(creditScore int) float64 {
+    switch {
+    case creditScore >= 750: return 8.99
+    case creditScore >= 700: return 10.99
+    case creditScore >= 650: return 12.99
+    case creditScore >= 600: return 15.99
+    default: return 18.99
+    }
+}
 
-#### **Content Commands**
-```
-post <subreddit> <key_path> <"content">  - Create signed post
-comment <post_id> <"content">            - Comment on post
-reply <comment_id> <"content">           - Reply to comment
-feed                                      - View your feed
-post-detail <post_id>                    - View post details
-```
-
-#### **Interaction Commands**
-```
-vote-post <post_id> <up|down>      - Vote on post
-vote-comment <comment_id> <up|down> - Vote on comment
-dm <username> <"message">          - Send direct message
-messages                           - List your messages
+// EMI Formula: P * r * (1+r)^n / ((1+r)^n - 1)
+func calculateEMI(principal, annualRate float64, months int) float64 {
+    monthlyRate := annualRate / 100 / 12
+    emi := principal * monthlyRate * 
+           math.Pow(1+monthlyRate, float64(months)) / 
+           (math.Pow(1+monthlyRate, float64(months)) - 1)
+    return math.Round(emi*100) / 100
+}
 ```
 
-#### **Utility Commands**
-```
-metrics          - Show server metrics
-pubkey <username> - Get user's public key
-help             - Show help message
-quit             - Exit CLI
-```
+### 7.5 Virtual Cards
 
-### 4.3 Usage Example
+**Features:**
+- Generate virtual debit cards
+- View card details with OTP verification
+- Freeze/unfreeze cards
+- Set spending limits (daily, monthly, per-transaction)
+- Track card transactions
 
-```bash
-$ gleam run -m reddit_clone/rest_cli_main -- --port 8081
+### 7.6 QR Payments
 
-Reddit Clone CLI - Type 'help' for commands
-> register alice
-✓ Registered alice
-✓ Keys generated: keys/alice_private.pem, keys/alice_public.pem
+**QR Code Types:**
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `static` | Reusable, amount entered by payer | Shop counter |
+| `dynamic` | One-time, fixed amount | Invoices |
 
-> create-sub news
-✓ Created subreddit: news
+**Payment Flow:**
+1. Merchant generates QR code
+2. Customer scans QR
+3. Customer confirms amount
+4. Payment processed (1.5% merchant fee)
+5. Both parties get notifications
 
-> join-sub news
-✓ Joined news
+### 7.7 Rewards & Cashback
 
-> post news keys/alice_private.pem "Hello World!"
-✓ Post created (ID: 1)
-✓ Signature valid
+**Earning Rates:**
+| Activity | Cashback | Points |
+|----------|----------|--------|
+| P2P Transfer | 1% | 10 pts/$ |
+| Bill Payment | 1.5% | 10 pts/$ |
+| Merchant Payment | 1.5% | 10 pts/$ |
 
-> feed
-────────────────────────────────────
-Post #1 by alice in news
-"Hello World!"
-Votes: 0 | Comments: 0 | ✓ Verified
-────────────────────────────────────
-```
-
-### 4.4 Cryptographic Integration
-
-The CLI automatically handles cryptographic operations:
-
-1. **Registration:** Generates RSA-4096 key pair
-2. **Post Signing:** Signs posts with private key
-3. **Verification Display:** Shows ✓ for valid signatures
-
-**Signing Process:**
-```gleam
-// Payload: username|subreddit|content
-let payload = author <> "|" <> subreddit <> "|" <> content
-let signature = sign_with_private_key(payload, private_key_path)
-```
+**Features:**
+- Real-time cashback credit
+- Points accumulation
+- Promotional offers
+- Lifetime earnings tracking
 
 ---
 
-## 5. Multiple Clients Demonstration
+## 8. Trading Platform
 
-### 5.1 Simulator Overview
+### 8.1 Architecture
 
-**File:** `src/reddit_clone/sim.gleam` (29,840 bytes)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Trading Service (8081)                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────┐     ┌─────────────────┐               │
+│  │  StockService   │     │ TradingService  │               │
+│  │                 │     │                 │               │
+│  │ • GetQuote()    │     │ • ExecuteTrade()│               │
+│  │ • GetChart()    │     │ • GetPortfolio()│               │
+│  │ • SearchStocks()│     │ • GetWatchlist()│               │
+│  │ • GetDetails()  │     │ • VerifyAccount()               │
+│  └────────┬────────┘     └────────┬────────┘               │
+│           │                       │                         │
+│           ▼                       ▼                         │
+│  ┌─────────────────┐     ┌─────────────────┐               │
+│  │   RapidAPI      │     │   trading.db    │               │
+│  │ (Stock Data)    │     │  (SQLite)       │               │
+│  └─────────────────┘     └─────────────────┘               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-The simulator demonstrates multiple concurrent clients by:
-- Spawning 100+ independent client processes
-- Simulating realistic user behavior
-- Generating load on the engine
-- Collecting performance metrics
+### 8.2 Stock Data Integration
 
-### 5.2 Simulator Architecture
+**RapidAPI Endpoints Used:**
+- `/stock` - Quote and search
+- `/historical_data` - Chart data
+- `/NSE_most_active` - Market movers
+- `/corporate_actions` - Dividends, splits
 
-```mermaid
-graph TD
-    COORD[Simulator Coordinator]
-    C1[Client Process 1]
-    C2[Client Process 2]
-    C3[Client Process 3]
-    CN[Client Process N]
-    ENGINE[Engine Process]
+**Caching Strategy:**
+```go
+type cacheItem struct {
+    data      interface{}
+    expiresAt time.Time
+}
+
+// Cache durations:
+// Quotes:  1 minute
+// Charts:  5 minutes  
+// Details: 1 hour
+// News:    15 minutes
+// All stocks: 5 minutes
+```
+
+### 8.3 Trading KYC
+
+**Required Information:**
+- Date of Birth (must be 18+)
+- SSN (9 digits, hashed for storage)
+- Security questions (2 Q&A pairs)
+- Risk acknowledgment
+
+### 8.4 Order Execution
+
+**Supported Order Types:**
+- Market orders (instant fill)
+- No commission fees (for demo)
+
+**Buy Order Flow:**
+```go
+func ExecuteTrade(userID uuid.UUID, req TradeRequest) {
+    // 1. Verify trading account status
+    if account.Status != VerificationVerified {
+        return error("account not verified")
+    }
     
-    COORD -->|spawn| C1
-    COORD -->|spawn| C2
-    COORD -->|spawn| C3
-    COORD -->|spawn| CN
-    C1 -->|messages| ENGINE
-    C2 -->|messages| ENGINE
-    C3 -->|messages| ENGINE
-    CN -->|messages| ENGINE
-```
-
-### 5.3 Client Behavior Simulation
-
-**Zipf Distribution:** Simulates realistic subreddit popularity
-- Popular subreddits get more members
-- More posts in popular subreddits
-- Realistic engagement patterns
-
-**Client Activities:**
-- Register and login
-- Join subreddits (Zipf-distributed)
-- Create posts
-- Add comments
-- Vote on content
-- Send direct messages
-- Go online/offline (churn)
-
-### 5.4 Running Multiple Clients
-
-**Command:**
-```bash
-gleam run
-```
-
-**Output:**
-```
-Initializing simulation...
-Starting 100 client processes...
-
-Cycle 1/10 starting...
-  ✓ 87 users online
-  ✓ 45 posts created
-  ✓ 120 comments added
-  ✓ 234 votes cast
-
-Cycle 2/10 starting...
-  ✓ 92 users online
-  ✓ 52 posts created
-  ...
-
-📊 PERFORMANCE SUMMARY
-═══════════════════════════════════
-Operations/sec:    543.2
-Total Operations:  5,432
-Error Rate:        0.3%
-Avg Latency:       12ms
-Peak Users:        98
-Total Posts:       520
-Total Comments:    1,240
-Total Votes:       2,340
-```
-
-### 5.5 Concurrency Demonstration
-
-**Key Metrics:**
-- **100+ concurrent client processes**
-- **500+ operations per second**
-- **No race conditions** (actor model guarantees)
-- **Linear scalability** up to 1000 clients
-
----
-
-## 6. Digital Signature Bonus Implementation
-
-### 6.1 Cryptographic Scheme
-
-**Algorithm:** RSA-4096 with SHA-256  
-**Key Format:** PEM (Privacy-Enhanced Mail)  
-**Signature Format:** Hex-encoded binary
-
-### 6.2 Key Generation
-
-**Implementation:** `src/reddit_clone/rest/keys.gleam`
-
-**Process:**
-```bash
-# Generate private key (4096-bit RSA)
-openssl genpkey -algorithm RSA -out keys/alice_private.pem -pkeyopt rsa_keygen_bits:4096
-
-# Extract public key
-openssl rsa -pubout -in keys/alice_private.pem -out keys/alice_public.pem
-```
-
-**Automatic Generation:**
-```gleam
-pub fn generate_key_pair(username: String) -> Result(KeyPair, Error) {
-  // Generate private key
-  let private_key_path = "keys/" <> username <> "_private.pem"
-  generate_private_key(private_key_path, 4096)
-  
-  // Extract public key
-  let public_key_path = "keys/" <> username <> "_public.pem"
-  extract_public_key(private_key_path, public_key_path)
-  
-  // Read public key content
-  let public_key_pem = read_file(public_key_path)
-  
-  Ok(KeyPair(private_key_path, public_key_pem))
-}
-```
-
-### 6.3 Post Signing
-
-**Implementation:** `src/reddit_clone/rest/sign.gleam`
-
-**Signing Process:**
-
-```gleam
-pub fn sign_post(
-  author: String,
-  subreddit: String,
-  content: String,
-  private_key_path: String,
-) -> Result(String, Error) {
-  // Construct payload
-  let payload = author <> "|" <> subreddit <> "|" <> content
-  
-  // Sign with private key (RSA-SHA256)
-  let signature_bytes = openssl_sign(payload, private_key_path)
-  
-  // Convert to hex string
-  let signature_hex = bytes_to_hex(signature_bytes)
-  
-  Ok(signature_hex)
-}
-```
-
-**Shell Equivalent:**
-```bash
-PAYLOAD="alice|news|Hello World"
-SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 \\
-  -sign keys/alice_private.pem | xxd -p -c256)
-```
-
-### 6.4 Signature Verification
-
-**Implementation:** `src/reddit_clone/rest/sign.gleam`
-
-**Verification Process:**
-
-```gleam
-pub fn verify_post_signature(
-  post: Post,
-  public_key_pem: String,
-) -> Bool {
-  // Reconstruct payload
-  let payload = post.author <> "|" <> post.subreddit <> "|" <> post.content
-  
-  // Convert hex signature to bytes
-  let signature_bytes = hex_to_bytes(post.signature)
-  
-  // Verify with public key
-  openssl_verify(payload, signature_bytes, public_key_pem)
-}
-```
-
-**Verification Points:**
-1. **Post Creation:** Server validates signature before storing
-2. **Post Retrieval:** Server re-verifies on every GET request
-3. **Feed Display:** Signature status shown in feed
-
-### 6.5 Public Key Distribution
-
-**Endpoint:** `GET /api/v1/public_keys/:username`
-
-**Implementation:**
-```gleam
-pub fn handle_get_public_key(username: String) -> Response {
-  case get_user_public_key(username) {
-    Ok(public_key_pem) -> {
-      Response(
-        status: 200,
-        headers: [#("Content-Type", "text/plain")],
-        body: public_key_pem,
-      )
+    // 2. Get current price from StockService
+    quote := stockService.GetQuote(req.Symbol)
+    totalValue := quantity * price
+    
+    // 3. Check buying power
+    if account.BuyingPower < totalValue {
+        return error("insufficient buying power")
     }
-    Error(_) -> {
-      Response(status: 404, body: "User not found")
-    }
-  }
+    
+    // 4. Deduct buying power
+    account.BuyingPower -= totalValue
+    
+    // 5. Create trade record
+    trade := Trade{Symbol, Quantity, Price, "buy"}
+    
+    // 6. Update position (weighted avg cost)
+    updatePositionBuy(symbol, quantity, price)
+    
+    // 7. Recalculate portfolio value
+    updatePortfolioValue(account)
 }
 ```
 
-**Usage:**
-```bash
-$ curl http://localhost:8081/api/v1/public_keys/alice
+### 8.5 Portfolio Tracking
 
------BEGIN RSA PUBLIC KEY-----
-MIICCgKCAgEA2Z9VS5JJcds3xfn/ygWyF8PbnGy7K8hQ3n...
------END RSA PUBLIC KEY-----
+**Real-time Updates:**
+- Current price from API
+- Market value calculation
+- Unrealized P&L
+- Percentage gain/loss
+
+```go
+for i := range positions {
+    quote := stockService.GetQuote(positions[i].Symbol)
+    positions[i].CurrentPrice = quote.Price
+    positions[i].MarketValue = Quantity * CurrentPrice
+    costBasis := Quantity * AvgCostBasis
+    positions[i].UnrealizedPL = MarketValue - costBasis
+    positions[i].UnrealizedPLPct = (UnrealizedPL / costBasis) * 100
+}
 ```
 
-### 6.6 Security Properties
+### 8.6 Watchlist
 
-**What Signatures Provide:**
-- ✅ **Authenticity:** Proof content came from claimed user
-- ✅ **Integrity:** Detects any content modification
-- ✅ **Non-repudiation:** User can't deny creating post
-
-**What Signatures DON'T Provide:**
-- ❌ **Confidentiality:** Posts are not encrypted
-- ❌ **Authorization:** Still need session tokens for API
-- ❌ **Anonymity:** Author is part of signed payload
-
-**Threat Model:**
-- ✅ Prevents impersonation attacks
-- ✅ Detects tampered posts
-- ✅ Protects against server manipulation
-- ❌ Doesn't prevent server from refusing to display posts
+**Features:**
+- Add/remove stocks
+- Real-time price updates
+- Quick access to trading
 
 ---
 
-## 7. Execution Instructions
+## 9. Performance Optimizations
 
-### 7.1 Prerequisites
+### 9.1 Backend Optimizations
 
-**System Requirements:**
-- macOS, Linux, or Windows (WSL)
-- Erlang/OTP 25.0 or higher
-- Gleam v0.34.0 or higher
-- OpenSSL (for cryptography)
+| Optimization | Implementation | Impact |
+|--------------|----------------|--------|
+| **In-Memory Caching** | `sync.RWMutex` protected map | Reduces API calls by 80% |
+| **Connection Pooling** | GORM default settings | Efficient DB connections |
+| **Lazy Loading** | GORM `Preload()` on demand | Reduces query overhead |
+| **Goroutines** | Async cashback processing | Non-blocking operations |
+| **Decimal Precision** | `shopspring/decimal` | Accurate financial math |
+| **Index Optimization** | GORM auto-indexes on FKs | Fast lookups |
 
-**Installation:**
+### 9.2 Database Optimizations
 
-```bash
-# Install Gleam (macOS)
-brew install gleam
+```go
+// Indexed fields for fast queries
+type User struct {
+    Email    string `gorm:"uniqueIndex"`
+    Phone    string `gorm:"uniqueIndex"`
+    Username string `gorm:"uniqueIndex"`
+    GoogleID string `gorm:"index"`
+}
 
-# Or download from: https://gleam.run/
-
-# Verify installation
-gleam --version
+type Transaction struct {
+    FromUserID uuid.UUID `gorm:"index"`
+    ToUserID   uuid.UUID `gorm:"index"`
+    Type       string    `gorm:"index"`
+    Status     string    `gorm:"index"`
+    CreatedAt  time.Time `gorm:"index"`
+}
 ```
 
-### 7.2 Project Setup
+### 9.3 Frontend Optimizations
 
-```bash
-# Navigate to project directory
-cd "/Users/tharun/iCloud Drive (Archive) - 1/Documents/Developer/Projects/reddit_clone"
+| Optimization | Implementation |
+|--------------|----------------|
+| **Lazy Loading** | Route-based code splitting |
+| **Standalone Components** | Reduced bundle size |
+| **HTTP Interceptors** | Centralized auth handling |
+| **OnPush Strategy** | Efficient change detection |
+| **Async Pipes** | Automatic subscription management |
 
-# Install dependencies
-gleam deps download
+### 9.4 Caching Strategy
 
-# Build project
-gleam build
 ```
-
-### 7.3 Running the REST API Server
-
-**Start Server:**
-```bash
-gleam run -m reddit_clone/rest_main -- 8081
-```
-
-**Expected Output:**
-```
-🚀 Reddit Clone REST API Server
-📡 Listening on http://localhost:8081
-✓ Engine process started
-✓ Router initialized
-✓ System online
-```
-
-**Keep this terminal running!**
-
-### 7.4 Running the CLI Client
-
-**Open a new terminal and run:**
-```bash
-gleam run -m reddit_clone/rest_cli_main -- --port 8081
-```
-
-**Interactive Session Example:**
-```
-Reddit Clone CLI - Connected to http://localhost:8081
-Type 'help' for commands, 'quit' to exit
-
-> register alice
-✓ Registered alice
-✓ Keys: keys/alice_private.pem, keys/alice_public.pem
-
-> login alice
-✓ Logged in as alice
-
-> create-sub news
-✓ Created subreddit: news
-
-> join-sub news
-✓ Joined news
-
-> post news keys/alice_private.pem "Breaking: Gleam is awesome!"
-✓ Post created (ID: 1)
-✓ Signature verified
-
-> feed
-────────────────────────────────────
-Post #1 by alice in news
-"Breaking: Gleam is awesome!"
-Votes: 0 | Comments: 0 | ✓ Verified
-────────────────────────────────────
-
-> quit
-Goodbye!
-```
-
-### 7.5 Running the Simulator (Multiple Clients)
-
-**Command:**
-```bash
-gleam run
-```
-
-**Description:** Runs `main.gleam` which spawns 100+ client processes
-
-**Output:**
-```
-🎯 Reddit Clone Simulator
-═══════════════════════════════════
-
-Configuration:
-  • Users: 100
-  • Subreddits: 20
-  • Cycles: 10
-  • Zipf α: 1.5
-
-Initializing simulation...
-✓ Engine started
-✓ Spawning 100 client processes...
-
-📊 Cycle 1/10
-  Online: 87 | Posts: 45 | Comments: 120 | Votes: 234
-
-📊 Cycle 2/10
-  Online: 92 | Posts: 52 | Comments: 135 | Votes: 267
-
-[... continues for 10 cycles ...]
-
-═══════════════════════════════════
-📊 FINAL PERFORMANCE SUMMARY
-═══════════════════════════════════
-Uptime:              120.5s
-Total Operations:    5,432
-Operations/sec:      45.1
-Success Rate:        99.7%
-Error Rate:          0.3%
-
-Posts Created:       520
-Comments Added:      1,240
-Votes Cast:          2,340
-Messages Sent:       156
-
-Peak Online Users:   98
-Total Connections:   487
-Total Disconnects:   485
-```
-
-### 7.6 Using REST API with curl
-
-**Complete workflow:**
-
-```bash
-# 1. Register user (server must be running)
-curl -X POST http://localhost:8081/api/v1/accounts \\
-  -H "Content-Type: application/json" \\
-  -d '{"username":"testuser","public_key":"<PEM_PUBLIC_KEY>"}'
-
-# 2. Login to get session token
-curl -X POST http://localhost:8081/api/v1/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{"username":"testuser"}'
-
-# Save the token
-TOKEN="<session_token_from_response>"
-
-# 3. Create subreddit
-curl -X POST http://localhost:8081/api/v1/subreddits \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"name":"technology","creator":"testuser"}'
-
-# 4. Join subreddit
-curl -X POST http://localhost:8081/api/v1/subreddits/technology/members \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"username":"testuser"}'
-
-# 5. Create signed post
-PAYLOAD="testuser|technology|My first post"
-SIG_HEX=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 \\
-  -sign keys/testuser_private.pem | xxd -p -c256)
-
-curl -X POST http://localhost:8081/api/v1/posts \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d "{\\"author\\":\\"testuser\\",\\"subreddit\\":\\"technology\\",\\"content\\":\\"My first post\\",\\"signature\\":\\"$SIG_HEX\\"}"
-
-# 6. Get feed (signature verified automatically)
-curl http://localhost:8081/api/v1/feed?username=testuser
-
-# 7. Get metrics
-curl http://localhost:8081/api/v1/metrics
-```
-
-### 7.7 Demo Scripts
-
-**Run comprehensive API demo:**
-```bash
-bash api_demo.sh
-```
-
-**Run automated test script:**
-```bash
-bash test_script.sh
+┌─────────────────────────────────────────────────────────────┐
+│                    Caching Layers                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Layer 1: In-Memory Cache (Go maps)                        │
+│  ├── Stock quotes (1 min TTL)                              │
+│  ├── Chart data (5 min TTL)                                │
+│  ├── Stock details (1 hour TTL)                            │
+│  └── All stocks list (5 min TTL)                           │
+│                                                             │
+│  Layer 2: Database (SQLite)                                │
+│  └── Persistent data with indexes                          │
+│                                                             │
+│  Layer 3: Browser Cache                                    │
+│  └── Static assets, API responses                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. Testing and Verification
+## 10. Deployment Guide
 
-### 8.1 Unit Tests
+### 10.1 Prerequisites
 
-**Run all tests:**
 ```bash
-gleam test
+# Required software
+- Go 1.21+
+- Node.js 18+
+- npm 9+
+- Git
 ```
 
-**Expected Output:**
-```
-Compiling reddit_clone
-   Compiled in 0.89s
-    Running reddit_clone_test.main
-.........................
+### 10.2 Environment Variables
 
-✓ 25 tests, 0 failures, 0 errors
-
-Test Summary:
-  • Account management: 5 tests ✓
-  • Subreddit operations: 4 tests ✓
-  • Post creation: 6 tests ✓
-  • Voting system: 4 tests ✓
-  • Direct messages: 3 tests ✓
-  • Signature verification: 3 tests ✓
+**Main Backend (.env)**
+```env
+PORT=8080
+DB_PATH=./flowpay.db
+JWT_SECRET=your-production-secret-key
 ```
 
-### 8.2 REST API Verification
-
-**Checklist:**
-
-| Requirement | Endpoint | Verification Method | Status |
-|------------|----------|---------------------|--------|
-| User registration | POST /accounts | curl command | ✅ |
-| Public key storage | GET /public_keys/:user | curl command | ✅ |
-| Subreddit creation | POST /subreddits | curl command | ✅ |
-| Join subreddit | POST /subreddits/:name/members | curl command | ✅ |
-| Create signed post | POST /posts | curl with signature | ✅ |
-| Get post with verification | GET /posts/:id | Check signature_valid | ✅ |
-| Add comment | POST /posts/:id/comments | curl command | ✅ |
-| Vote on post | POST /posts/:id/votes | curl command | ✅ |
-| Get feed | GET /feed | curl command | ✅ |
-| Send DM | POST /messages | curl command | ✅ |
-| Get metrics | GET /metrics | curl command | ✅ |
-
-### 8.3 CLI Client Verification
-
-**Test Scenario:**
-```
-Step 1: Register → Should create keys and register user
-Step 2: Login → Should return session token
-Step 3: Create subreddit → Should succeed
-Step 4: Join subreddit → Should add membership
-Step 5: Create signed post → Should verify signature
-Step 6: View feed → Should show post with ✓
-Step 7: Add comment → Should nest under post
-Step 8: Vote → Should update karma
-Step 9: Send DM → Should create thread
-Step 10: Get metrics → Should show statistics
+**Trading Service (.env)**
+```env
+PORT=8081
+DB_PATH=./trading.db
+JWT_SECRET=your-production-secret-key
+RAPIDAPI_KEY=your-rapidapi-key
+RAPIDAPI_HOST=indian-stock-exchange-api2.p.rapidapi.com
+MAIN_API_URL=http://localhost:8080
 ```
 
-**Run automated scenario:**
+### 10.3 Quick Start
+
 ```bash
-gleam run -m reddit_clone/rest_cli_main -- scenario
+# Clone and navigate
+cd "/Users/tharun/iCloud Drive (Archive) - 1/Documents/Developer/Projects/SE"
+
+# Terminal 1: Main Backend
+cd flowpay-backend
+go run ./cmd/api/main.go
+
+# Terminal 2: Trading Service
+cd flowpay-trading
+go run ./cmd/api/main.go
+
+# Terminal 3: Frontend
+cd flowpay-frontend
+npm install
+npm start
+
+# Access: http://localhost:4200
 ```
 
-**Expected Output:**
-```
-[ok] Register alice
-[ok] Register bob
-[ok] Alice creates subreddit
-[ok] Alice joins subreddit
-[ok] Alice creates signed post
-[ok] Bob comments on post
-[ok] Bob upvotes post
-[ok] Alice sends DM to bob
-[ok] Fetch metrics
+### 10.4 Production Build
 
-✓ All steps completed successfully
-```
-
-### 8.4 Multiple Clients Verification
-
-**Run simulator:**
 ```bash
-gleam run
+# Backend binaries
+cd flowpay-backend
+go build -o bin/flowpay-api ./cmd/api
+
+cd flowpay-trading
+go build -o bin/trading-api ./cmd/api
+
+# Frontend production build
+cd flowpay-frontend
+npm run build
+# Output: dist/flowpay-frontend
 ```
 
-**Verify:**
-- ✅ 100+ processes spawn successfully
-- ✅ Concurrent operations execute without errors
-- ✅ Metrics show realistic activity levels
-- ✅ No deadlocks or race conditions
-- ✅ Graceful handling of conflicts
+### 10.5 Health Checks
 
-### 8.5 Cryptographic Bonus Verification
-
-**Public Key Registration:**
 ```bash
-# Register user
-gleam run -m reddit_clone/rest_cli_main
-> register alice
+# Main Backend
+curl http://localhost:8080/health
+# {"status":"ok","service":"flowpay-api"}
 
-# Check keys created
-ls -la keys/alice_*
-
-# Verify public key on server
-curl http://localhost:8081/api/v1/public_keys/alice
-```
-
-**Signature Verification:**
-```bash
-# Create post via CLI (automatically signed)
-> post news keys/alice_private.pem "Test post"
-
-# Retrieve post and check signature_valid field
-curl http://localhost:8081/api/v1/posts/1 | jq '.post.signature_valid'
-# Should output: true
-```
-
-**Tampering Test:**
-```bash
-# Create post
-> post news keys/alice_private.pem "Original content"
-
-# Try to create post with wrong key (should fail validation)
-> post news keys/bob_private.pem "Fake alice post"
-# Server should reject or mark invalid
+# Trading Service
+curl http://localhost:8081/health
+# {"status":"ok","service":"flowpay-trading","version":"1.0.0"}
 ```
 
 ---
 
-## 9. Performance Analysis
+## 📊 Summary
 
-### 9.1 Load Testing Results
+FlowPay is a production-ready fintech platform featuring:
 
-**Test Configuration:**
-- Concurrent Clients: 100
-- Duration: 120 seconds
-- Operations: 5,400+
-
-**Results:**
-
-| Metric | Value |
-|--------|-------|
-| Operations/second | 45-50 |
-| Average Latency | 12-15ms |
-| 95th Percentile Latency | 28ms |
-| 99th Percentile Latency | 45ms |
-| Error Rate | <0.5% |
-| Peak Memory Usage | 280MB |
-
-### 9.2 Scalability Analysis
-
-**Concurrent Users vs Performance:**
-
-| Users | Ops/sec | Avg Latency | Error Rate |
-|-------|---------|-------------|------------|
-| 10 | 80 | 8ms | 0% |
-| 50 | 65 | 10ms | 0% |
-| 100 | 45 | 15ms | 0.3% |
-| 500 | 25 | 35ms | 1.2% |
-| 1000 | 15 | 60ms | 2.5% |
-
-**Bottlenecks:**
-- Single engine process (by design)
-- JSON serialization overhead
-- Cryptographic operations
-
-**Optimizations:**
-- Actor model eliminates locking overhead
-- Efficient Erlang message passing
-- Immutable data structures reduce copying
-
-### 9.3 Cryptographic Performance Impact
-
-**Operation Timing:**
-
-| Operation | Without Crypto | With Crypto | Overhead |
-|-----------|---------------|-------------|----------|
-| Post Creation | 2ms | 8ms | 6ms (+300%) |
-| Post Retrieval | 1ms | 5ms | 4ms (+400%) |
-| Feed Generation | 3ms | 12ms | 9ms (+300%) |
-
-**Analysis:**
-- RSA operations are CPU-intensive
-- Verification on every GET is expensive
-- Could be optimized with caching
-- Acceptable for current scale
+- ✅ **Microservices Architecture** - Scalable, maintainable services
+- ✅ **Secure Authentication** - JWT + OAuth with bcrypt hashing
+- ✅ **Real-time Trading** - Live stock data with RapidAPI integration
+- ✅ **Comprehensive Banking** - Wallet, transfers, bills, loans, cards
+- ✅ **Merchant Solutions** - QR payments with analytics
+- ✅ **Performance Optimized** - Caching, indexing, async processing
+- ✅ **Modern Frontend** - Angular 19 with reactive patterns
 
 ---
 
-## 10. Conclusion
-
-### 10.1 Requirements Fulfillment
-
-#### ✅ **Requirement 1: REST API Implementation**
-- Comprehensive REST API with 20+ endpoints
-- RESTful design following HTTP standards
-- JSON request/response format
-- Proper error handling and status codes
-- Session-based authentication
-
-#### ✅ **Requirement 2: Command-Line Client**
-- Fully functional CLI with 20+ commands
-- Uses REST API for all operations
-- Interactive and user-friendly
-- Automatic crypto key management
-- Clear error messages and feedback
-
-#### ✅ **Requirement 3: Multiple Clients**
-- Simulator spawns 100+ concurrent client processes
-- Demonstrates concurrent operations
-- Realistic user behavior with Zipf distribution
-- Performance metrics collection
-- Stable under high load
-
-#### ✅ **Bonus: Digital Signatures**
-- RSA-4096 key generation on registration
-- Public key provided and retrievable
-- All posts cryptographically signed
-- Signature verification on download
-- Security guarantees for authenticity
-
-### 10.2 Technical Achievements
-
-**Architecture:**
-- Clean separation of concerns
-- Actor-based concurrency model
-- Type-safe message passing
-- Functional programming principles
-
-**Performance:**
-- Handles 100+ concurrent clients
-- 45+ operations/second sustained
-- Low latency (<15ms average)
-- Minimal error rate (<0.5%)
-
-**Security:**
-- Strong cryptographic signatures (RSA-4096)
-- Public key infrastructure
-- Session-based authentication
-- Input validation and sanitization
-
-### 10.3 Key Features
-
-1. **Complete Reddit Clone:** All core features implemented
-2. **Production-Ready API:** Comprehensive REST interface
-3. **User-Friendly CLI:** Interactive command-line client
-4. **Scalable Architecture:** Actor model for concurrency
-5. **Cryptographic Security:** Digital signatures for posts
-6. **Performance Monitoring:** Built-in metrics system
-7. **Comprehensive Testing:** Unit tests and integration tests
-8. **Documentation:** Detailed API docs and guides
-
-### 10.4 Technologies Used
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Language | Gleam 0.34+ | Type-safe functional programming |
-| Runtime | Erlang/OTP 25+ | Actor-based concurrency |
-| HTTP Server | Custom TCP | Lightweight REST API |
-| JSON | thoas library | Serialization |
-| Crypto | OpenSSL | RSA signatures |
-| Testing | gleam_test | Unit and integration tests |
-
-### 10.5 Learning Outcomes
-
-1. **Functional Programming:** Immutable data, pure functions
-2. **Concurrency:** Actor model, message passing
-3. **Web APIs:** RESTful design principles
-4. **Cryptography:** Digital signatures, PKI
-5. **Systems Design:** Scalable architecture patterns
-
-### 10.6 Future Enhancements
-
-**Potential Improvements:**
-1. WebSocket support for real-time updates
-2. Persistent storage (database integration)
-3. Caching layer for performance
-4. Rate limiting and throttling
-5. Multi-server clustering
-6. GraphQL API alongside REST
-7. Web frontend (React/Vue)
-8. Image/file upload support
-9. Search functionality
-10. Moderation tools
-
-### 10.7 Project Statistics
-
-**Code Metrics:**
-- Total Lines of Code: ~15,000
-- Gleam Files: 23
-- Erlang FFI Modules: 6
-- Test Files: Multiple
-- Documentation: 5 comprehensive docs
-
-**Features Implemented:**
-- REST API Endpoints: 20+
-- CLI Commands: 20+
-- Data Models: 10+
-- Cryptographic Operations: 4
-
-**Testing Coverage:**
-- Unit Tests: 25+
-- Integration Tests: Comprehensive
-- Load Tests: Up to 1000 clients
-- Security Tests: Signature verification
-
----
-
-## Appendix A: Complete Command Reference
-
-### Server Commands
-```bash
-# Start REST API server on port 8081
-gleam run -m reddit_clone/rest_main -- 8081
-
-# Run simulator (multiple clients)
-gleam run
-
-# Run tests
-gleam test
-```
-
-### CLI Commands
-```bash
-# Start CLI client
-gleam run -m reddit_clone/rest_cli_main -- --port 8081
-
-# Run automated scenario
-gleam run -m reddit_clone/rest_cli_main -- scenario
-```
-
-### REST API Commands (curl)
-```bash
-# See section 7.6 for complete curl examples
-```
-
----
-
-## Appendix B: File Structure
-
-```
-reddit_clone/
-├── src/
-│   ├── main.gleam                      # Simulator entry point
-│   ├── reddit_clone/
-│   │   ├── engine.gleam                # Core engine
-│   │   ├── engine/
-│   │   │   ├── state.gleam             # State management
-│   │   │   └── types.gleam             # Type definitions
-│   │   ├── rest/
-│   │   │   ├── router.gleam            # REST routing
-│   │   │   ├── server.gleam            # HTTP server
-│   │   │   ├── session.gleam           # Auth
-│   │   │   ├── sign.gleam              # Signatures
-│   │   │   └── keys.gleam              # Key generation
-│   │   ├── rest_main.gleam             # REST server entry
-│   │   ├── rest_cli_main.gleam         # CLI client
-│   │   ├── sim.gleam                   # Simulator
-│   │   ├── crypto.gleam                # Crypto utilities
-│   │   └── json.gleam                  # JSON helpers
-│   └── *.erl                           # Erlang FFI modules
-├── test/                               # Test files
-├── docs/                               # Documentation
-├── keys/                               # Generated keys
-├── gleam.toml                          # Project config
-└── README.md                           # Quick start guide
-```
-
----
-
-## Appendix C: References
-
-1. **Reddit API Documentation:** https://www.reddit.com/dev/api/
-2. **Gleam Language:** https://gleam.run/
-3. **Erlang/OTP:** https://www.erlang.org/
-4. **RSA Cryptography:** RFC 8017
-5. **REST API Design:** Roy Fielding's dissertation
-
----
-
-**End of Report**
+*Documentation generated on January 29, 2026*
+*FlowPay v1.0.0*
